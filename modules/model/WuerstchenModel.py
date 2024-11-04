@@ -215,9 +215,9 @@ class WuerstchenModel(BaseModel):
         if tokens is None and text is not None:
             tokenizer_output = self.prior_tokenizer(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens = tokenizer_output.input_ids.to(self.prior_text_encoder.device)

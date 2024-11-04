@@ -179,9 +179,9 @@ class StableDiffusionXLModel(BaseModel):
         if tokens_1 is None and text is not None:
             tokenizer_output = self.tokenizer_1(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_1 = tokenizer_output.input_ids.to(self.text_encoder_1.device)
@@ -189,9 +189,9 @@ class StableDiffusionXLModel(BaseModel):
         if tokens_2 is None and text is not None:
             tokenizer_output = self.tokenizer_2(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)
@@ -203,7 +203,7 @@ class StableDiffusionXLModel(BaseModel):
             layer_skip=text_encoder_1_layer_skip,
             text_encoder_output=text_encoder_1_output,
             add_pooled_output=False,
-            use_attention_mask=False,
+            use_attention_mask=True, # Tips: BOS and EOS tokens are masked
             add_layer_norm=False,
         )
 
@@ -215,9 +215,28 @@ class StableDiffusionXLModel(BaseModel):
             text_encoder_output=text_encoder_2_output,
             add_pooled_output=True,
             pooled_text_encoder_output=pooled_text_encoder_2_output,
-            use_attention_mask=False,
+            use_attention_mask=True, # Tips: BOS and EOS tokens are masked
             add_layer_norm=False,
         )
+
+        # Pad the shorter sequence with zeros to match the longer sequence length
+        max_seq_len = max(text_encoder_1_output.shape[1], text_encoder_2_output.shape[1])
+
+        if text_encoder_1_output.shape[1] < max_seq_len:
+            padding = torch.zeros(
+                (text_encoder_1_output.shape[0], max_seq_len - text_encoder_1_output.shape[1], text_encoder_1_output.shape[2]),
+                device=text_encoder_1_output.device,
+                dtype=text_encoder_1_output.dtype
+            )
+            text_encoder_1_output = torch.cat([text_encoder_1_output, padding], dim=1)
+
+        if text_encoder_2_output.shape[1] < max_seq_len:
+            padding = torch.zeros(
+                (text_encoder_2_output.shape[0], max_seq_len - text_encoder_2_output.shape[1], text_encoder_2_output.shape[2]),
+                device=text_encoder_2_output.device,
+                dtype=text_encoder_2_output.dtype
+            )
+            text_encoder_2_output = torch.cat([text_encoder_2_output, padding], dim=1)
 
         # apply dropout
         if text_encoder_1_dropout_probability is not None:

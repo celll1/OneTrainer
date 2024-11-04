@@ -199,9 +199,9 @@ class StableDiffusionModel(BaseModel):
         if tokens is None:
             tokenizer_output = self.tokenizer(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens = tokenizer_output.input_ids.to(self.text_encoder.device)

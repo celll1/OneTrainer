@@ -228,9 +228,9 @@ class StableDiffusion3Model(BaseModel):
         if tokens_1 is None and text is not None and self.tokenizer_1 is not None:
             tokenizer_output = self.tokenizer_1(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_1 = tokenizer_output.input_ids.to(self.text_encoder_1.device)
@@ -239,9 +239,9 @@ class StableDiffusion3Model(BaseModel):
         if tokens_2 is None and text is not None and self.tokenizer_2 is not None:
             tokenizer_output = self.tokenizer_2(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)
@@ -250,9 +250,9 @@ class StableDiffusion3Model(BaseModel):
         if tokens_3 is None and text is not None and self.tokenizer_3 is not None:
             tokenizer_output = self.tokenizer_3(
                 text,
-                padding='max_length',
+                # padding='max_length',
                 truncation=True,
-                max_length=77,
+                max_length=1024, # Tips: original model trained with 77 or 256 tokens on the T5 encoder
                 return_tensors="pt",
             )
             tokens_3 = tokenizer_output.input_ids.to(self.text_encoder_3.device)
@@ -266,7 +266,7 @@ class StableDiffusion3Model(BaseModel):
             text_encoder_output=text_encoder_1_output,
             add_pooled_output=True,
             pooled_text_encoder_output=pooled_text_encoder_1_output,
-            use_attention_mask=False,
+            use_attention_mask=True, # Tips: BOS and EOS tokens are masked
             add_layer_norm=False,
         )
         if text_encoder_1_output is None or pooled_text_encoder_1_output is None:
@@ -294,7 +294,7 @@ class StableDiffusion3Model(BaseModel):
             text_encoder_output=text_encoder_2_output,
             add_pooled_output=True,
             pooled_text_encoder_output=pooled_text_encoder_2_output,
-            use_attention_mask=False,
+            use_attention_mask=True, # Tips: BOS and EOS tokens are masked
             add_layer_norm=False,
         )
         if text_encoder_2_output is None or pooled_text_encoder_2_output is None:
@@ -335,6 +335,25 @@ class StableDiffusion3Model(BaseModel):
                     device=train_device,
                     dtype=self.train_dtype.torch_dtype(),
                 )
+
+        # Pad the shorter sequence with zeros to match the longer sequence length
+        max_seq_len = max(text_encoder_1_output.shape[1], text_encoder_2_output.shape[1])
+
+        if text_encoder_1_output.shape[1] < max_seq_len:
+            padding = torch.zeros(
+                (text_encoder_1_output.shape[0], max_seq_len - text_encoder_1_output.shape[1], text_encoder_1_output.shape[2]),
+                device=text_encoder_1_output.device,
+                dtype=text_encoder_1_output.dtype
+            )
+            text_encoder_1_output = torch.cat([text_encoder_1_output, padding], dim=1)
+
+        if text_encoder_2_output.shape[1] < max_seq_len:
+            padding = torch.zeros(
+                (text_encoder_2_output.shape[0], max_seq_len - text_encoder_2_output.shape[1], text_encoder_2_output.shape[2]),
+                device=text_encoder_2_output.device,
+                dtype=text_encoder_2_output.dtype
+            )
+            text_encoder_2_output = torch.cat([text_encoder_2_output, padding], dim=1)
 
         if apply_attention_mask:
             text_encoder_1_output = text_encoder_1_output * tokens_mask_1[:, :, None]

@@ -198,9 +198,9 @@ class FluxModel(BaseModel):
         if tokens_1 is None and text is not None and self.tokenizer_1 is not None:
             tokenizer_output = self.tokenizer_1(
                 text,
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                # padding='max_length',
+                # truncation=True,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_1 = tokenizer_output.input_ids.to(self.text_encoder_1.device)
@@ -208,9 +208,9 @@ class FluxModel(BaseModel):
         if tokens_2 is None and text is not None and self.tokenizer_2 is not None:
             tokenizer_output = self.tokenizer_2(
                 text,
-                padding='max_length',
+                # padding='max_length',
                 truncation=True,
-                max_length=77,
+                max_length=1024, # Tips: original model trained with 77 or 256 tokens on the T5 encoder
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)
@@ -225,7 +225,7 @@ class FluxModel(BaseModel):
             text_encoder_output=None,
             add_pooled_output=True,
             pooled_text_encoder_output=pooled_text_encoder_1_output,
-            use_attention_mask=False,
+            use_attention_mask=True, # Tips: BOS and EOS tokens are masked
         )
         if pooled_text_encoder_1_output is None:
             pooled_text_encoder_1_output = torch.zeros(
