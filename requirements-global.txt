@@ -37,5 +37,8 @@ pytorch_optimizer==3.0.2 # pytorch optimizers
 # Profiling
 scalene==1.5.41
 
+# accelerate
+accelerate==1.1.0
+
 # ui
 customtkinter==5.2.2

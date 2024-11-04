@@ -30,8 +30,6 @@ from modules.util.time_util import get_string_timestamp
 from modules.util.torch_util import torch_gc
 from modules.util.TrainProgress import TrainProgress
 
-from accelerate import Accelerator, DistributedDataParallelKwargs
-
 import torch
 from torch import Tensor, nn
 from torch.nn import Parameter
@@ -39,6 +37,7 @@ from torch.utils.hooks import RemovableHandle
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.functional import pil_to_tensor
 
+from accelerate import Accelerator, DistributedDataParallelKwargs
 from PIL.Image import Image
 from tqdm import tqdm
 
@@ -612,6 +611,21 @@ class GenericTrainer(BaseTrainer):
             else:
                 self.model_setup.setup_train_device(self.model, self.config)
                 self.data_loader.get_data_set().start_next_epoch()
+
+            # ここにデバイスチェックのデバッグ出力を追加する
+            print(f"train_device: {train_device}")
+            if hasattr(self.model, 'text_encoder'):
+                print(f"self.model.text_encoder.device: {self.model.text_encoder.device}")
+            if hasattr(self.model, 'text_encoder_1'):
+                print(f"self.model.text_encoder_1.device: {self.model.text_encoder_1.device}")
+            if hasattr(self.model, 'text_encoder_2'):
+                print(f"self.model.text_encoder_2.device: {self.model.text_encoder_2.device}")
+            if hasattr(self.model, 'text_encoder_3'):
+                print(f"self.model.text_encoder_3.device: {self.model.text_encoder_3.device}")
+            if hasattr(self.model, 'vae'):
+                print(f"self.model.vae.device: {self.model.vae.device}")
+            if hasattr(self.model, 'unet'):
+                print(f"self.model.unet.device: {self.model.unet.device}")
 
             # Special case for schedule-free optimizers, which need train()
             # called before training. Can and should move this to a callback
