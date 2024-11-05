@@ -74,7 +74,7 @@ class GenericTrainer(BaseTrainer):
         if self.accelerator.device:
             print(f"Accelerator device: {self.accelerator.device.type}")
         else:
-            print(f"Accelerator device: Not activated")
+            print("Accelerator device: Not activated")
             print(f"using {torch.device(self.config.train_device)}")
 
         tensorboard_log_dir = os.path.join(config.workspace_dir, "tensorboard")
