@@ -244,35 +244,43 @@ class StableDiffusion3LoRASetup(
         if hasattr(self, 'accelerator') and self.accelerator.device:
             print(f"accelerator device (in setup_train_device): {self.accelerator.device}")
             # acceleratorが有効な場合は、train_deviceのto操作を行わない
-            # これは、acceleratorがモデルをデバイスに移動するため
-            # temp_deviceへの移動のみを行う
             if not text_encoder_1_on_train_device:
                 model.text_encoder_1_to(self.temp_device)
             else:
-                model.text_encoder_1 = self.accelerator.prepare(model.text_encoder_1)
                 if model.text_encoder_1_lora is not None:
+                    # LoRAモジュールの内部パラメータも含めて移動
+                    for module in model.text_encoder_1_lora.modules():
+                        if hasattr(module, 'weight') or hasattr(module, 'bias'):
+                            module.to(self.accelerator.device)
                     model.text_encoder_1_lora = self.accelerator.prepare(model.text_encoder_1_lora)
 
             if not text_encoder_2_on_train_device:
                 model.text_encoder_2_to(self.temp_device)
             else:
-                model.text_encoder_2 = self.accelerator.prepare(model.text_encoder_2)
                 if model.text_encoder_2_lora is not None:
+                    for module in model.text_encoder_2_lora.modules():
+                        if hasattr(module, 'weight') or hasattr(module, 'bias'):
+                            module.to(self.accelerator.device)
                     model.text_encoder_2_lora = self.accelerator.prepare(model.text_encoder_2_lora)
 
             if not text_encoder_3_on_train_device:
                 model.text_encoder_3_to(self.temp_device)
             else:
-                model.text_encoder_3 = self.accelerator.prepare(model.text_encoder_3)
                 if model.text_encoder_3_lora is not None:
+                    for module in model.text_encoder_3_lora.modules():
+                        if hasattr(module, 'weight') or hasattr(module, 'bias'):
+                            module.to(self.accelerator.device)
                     model.text_encoder_3_lora = self.accelerator.prepare(model.text_encoder_3_lora)
 
             if not vae_on_train_device:
                 model.vae_to(self.temp_device)
-            else:
-                model.vae = self.accelerator.prepare(model.vae)
 
-            model.transformer = self.accelerator.prepare(model.transformer)
+            if model.transformer_lora is not None:
+                for module in model.transformer_lora.modules():
+                    if hasattr(module, 'weight') or hasattr(module, 'bias'):
+                        module.to(self.accelerator.device)
+                model.transformer_lora = self.accelerator.prepare(model.transformer_lora)
+
         else:
             print("accelerator is not available (in setup_train_device)")
             model.text_encoder_1_to(self.train_device if text_encoder_1_on_train_device else self.temp_device)
@@ -283,10 +291,30 @@ class StableDiffusion3LoRASetup(
 
         # 各モジュールのdeviceを確認する
         print(f"model.text_encoder_1.device (in setup_train_device): {model.text_encoder_1.device}")
+        if model.text_encoder_1_lora is not None:
+            print("model.text_encoder_1_lora device check:")
+            for name, param in model.text_encoder_1_lora.named_parameters():
+                print(f"  {name}: {param.device}")
+
         print(f"model.text_encoder_2.device (in setup_train_device): {model.text_encoder_2.device}")
-        # print(f"model.text_encoder_3.device (in setup_train_device): {model.text_encoder_3.device}")
+        if model.text_encoder_2_lora is not None:
+            print("model.text_encoder_2_lora device check:")
+            for name, param in model.text_encoder_2_lora.named_parameters():
+                print(f"  {name}: {param.device}")
+
+        print(f"model.text_encoder_3.device (in setup_train_device): {model.text_encoder_3.device}")
+        if model.text_encoder_3_lora is not None:
+            print("model.text_encoder_3_lora device check:")
+            for name, param in model.text_encoder_3_lora.named_parameters():
+                print(f"  {name}: {param.device}")
+
         print(f"model.vae.device (in setup_train_device): {model.vae.device}")
+
         print(f"model.transformer.device (in setup_train_device): {model.transformer.device}")
+        if model.transformer_lora is not None:
+            print("model.transformer_lora device check:")
+            for name, param in model.transformer_lora.named_parameters():
+                print(f"  {name}: {param.device}")
 
         if model.text_encoder_1:
             if config.text_encoder.train:
