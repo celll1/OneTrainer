@@ -248,12 +248,25 @@ class StableDiffusion3LoRASetup(
             # temp_deviceへの移動のみを行う
             if not text_encoder_1_on_train_device:
                 model.text_encoder_1_to(self.temp_device)
+            else:
+                model.text_encoder_1 = self.accelerator.prepare(model.text_encoder_1)
+
             if not text_encoder_2_on_train_device:
                 model.text_encoder_2_to(self.temp_device)
+            else:
+                model.text_encoder_2 = self.accelerator.prepare(model.text_encoder_2)
+
             if not text_encoder_3_on_train_device:
                 model.text_encoder_3_to(self.temp_device)
+            else:
+                model.text_encoder_3 = self.accelerator.prepare(model.text_encoder_3)
+
             if not vae_on_train_device:
                 model.vae_to(self.temp_device)
+            else:
+                model.vae = self.accelerator.prepare(model.vae)
+
+            model.transformer = self.accelerator.prepare(model.transformer)
         else:
             print("accelerator is not available (in setup_train_device)")
             model.text_encoder_1_to(self.train_device if text_encoder_1_on_train_device else self.temp_device)
