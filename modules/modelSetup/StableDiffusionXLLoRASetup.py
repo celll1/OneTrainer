@@ -172,6 +172,9 @@ class StableDiffusionXLLoRASetup(
             model: StableDiffusionXLModel,
             config: TrainConfig,
     ):
+        train_device = self.get_actual_device(self.train_device)
+        temp_device = self.get_actual_device(self.temp_device)
+
         vae_on_train_device = config.align_prop or not config.latent_caching
         text_encoder_1_on_train_device = \
             config.train_text_encoder_or_embedding()\
@@ -182,10 +185,10 @@ class StableDiffusionXLLoRASetup(
             or config.align_prop \
             or not config.latent_caching
 
-        model.text_encoder_1_to(self.train_device if text_encoder_1_on_train_device else self.temp_device)
-        model.text_encoder_2_to(self.train_device if text_encoder_2_on_train_device else self.temp_device)
-        model.vae_to(self.train_device if vae_on_train_device else self.temp_device)
-        model.unet_to(self.train_device)
+        model.text_encoder_1_to(train_device if text_encoder_1_on_train_device else temp_device)
+        model.text_encoder_2_to(train_device if text_encoder_2_on_train_device else temp_device)
+        model.vae_to(train_device if vae_on_train_device else temp_device)
+        model.unet_to(train_device)
 
         if config.text_encoder.train:
             model.text_encoder_1.train()

@@ -21,12 +21,14 @@ class BaseModelSetup(
             train_device: torch.device,
             temp_device: torch.device,
             debug_mode: bool,
+            # accelerator: Accelerator,
     ):
         super().__init__()
 
         self.train_device = train_device
         self.temp_device = temp_device
         self.debug_mode = debug_mode
+        # self.accelerator = accelerator
 
     @abstractmethod
     def create_parameters(
@@ -200,3 +202,8 @@ class BaseModelSetup(
             config.stop_training_after_unit,
             train_progress,
         )
+
+    def get_actual_device(self, device: torch.device) -> torch.device:
+        if hasattr(self, 'accelerator') and self.accelerator.device:
+            return self.accelerator.device
+        return device

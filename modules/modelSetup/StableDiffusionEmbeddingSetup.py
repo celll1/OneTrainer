@@ -78,12 +78,15 @@ class StableDiffusionEmbeddingSetup(
             model: StableDiffusionModel,
             config: TrainConfig,
     ):
+        train_device = self.get_actual_device(self.train_device)
+        temp_device = self.get_actual_device(self.temp_device)
+
         vae_on_train_device = self.debug_mode or config.align_prop_loss or not config.latent_caching
 
-        model.text_encoder_to(self.train_device)
-        model.vae_to(self.train_device if vae_on_train_device else self.temp_device)
-        model.unet_to(self.train_device)
-        model.depth_estimator_to(self.temp_device)
+        model.text_encoder_to(train_device)
+        model.vae_to(train_device if vae_on_train_device else temp_device)
+        model.unet_to(train_device)
+        model.depth_estimator_to(temp_device)
 
         model.text_encoder.eval()
         model.vae.eval()

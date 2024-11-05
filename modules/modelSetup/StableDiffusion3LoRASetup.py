@@ -222,6 +222,9 @@ class StableDiffusion3LoRASetup(
             model: StableDiffusion3Model,
             config: TrainConfig,
     ):
+        train_device = self.get_actual_device(self.train_device)
+        temp_device = self.get_actual_device(self.temp_device)
+
         vae_on_train_device = config.align_prop or not config.latent_caching
         text_encoder_1_on_train_device = \
             config.train_text_encoder_or_embedding() \
@@ -238,11 +241,11 @@ class StableDiffusion3LoRASetup(
             or config.align_prop \
             or not config.latent_caching
 
-        model.text_encoder_1_to(self.train_device if text_encoder_1_on_train_device else self.temp_device)
-        model.text_encoder_2_to(self.train_device if text_encoder_2_on_train_device else self.temp_device)
-        model.text_encoder_3_to(self.train_device if text_encoder_3_on_train_device else self.temp_device)
-        model.vae_to(self.train_device if vae_on_train_device else self.temp_device)
-        model.transformer_to(self.train_device)
+        model.text_encoder_1_to(train_device if text_encoder_1_on_train_device else temp_device)
+        model.text_encoder_2_to(train_device if text_encoder_2_on_train_device else temp_device)
+        model.text_encoder_3_to(train_device if text_encoder_3_on_train_device else temp_device)
+        model.vae_to(train_device if vae_on_train_device else temp_device)
+        model.transformer_to(train_device)
 
         if model.text_encoder_1:
             if config.text_encoder.train:
