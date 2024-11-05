@@ -250,16 +250,22 @@ class StableDiffusion3LoRASetup(
                 model.text_encoder_1_to(self.temp_device)
             else:
                 model.text_encoder_1 = self.accelerator.prepare(model.text_encoder_1)
+                if model.text_encoder_1_lora is not None:
+                    model.text_encoder_1_lora = self.accelerator.prepare(model.text_encoder_1_lora)
 
             if not text_encoder_2_on_train_device:
                 model.text_encoder_2_to(self.temp_device)
             else:
                 model.text_encoder_2 = self.accelerator.prepare(model.text_encoder_2)
+                if model.text_encoder_2_lora is not None:
+                    model.text_encoder_2_lora = self.accelerator.prepare(model.text_encoder_2_lora)
 
             if not text_encoder_3_on_train_device:
                 model.text_encoder_3_to(self.temp_device)
             else:
                 model.text_encoder_3 = self.accelerator.prepare(model.text_encoder_3)
+                if model.text_encoder_3_lora is not None:
+                    model.text_encoder_3_lora = self.accelerator.prepare(model.text_encoder_3_lora)
 
             if not vae_on_train_device:
                 model.vae_to(self.temp_device)
