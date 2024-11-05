@@ -113,6 +113,7 @@ class GenericTrainer(BaseTrainer):
 
         self.model_loader = self.create_model_loader()
         self.model_setup = self.create_model_setup()
+        self.model_setup.accelerator = self.accelerator
 
         self.callbacks.on_update_status("loading the model")
 
@@ -626,9 +627,9 @@ class GenericTrainer(BaseTrainer):
                 print(f"self.model.text_encoder_1.device: {self.model.text_encoder_1.device}")
             if hasattr(self.model, 'text_encoder_2'):
                 print(f"self.model.text_encoder_2.device: {self.model.text_encoder_2.device}")
-            if hasattr(self.model, 'text_encoder_3'):
-                print(f"self.model.text_encoder_3.first_device: {self.model.text_encoder_3.first_device}")
-                print(f"self.model.text_encoder_3.last_device: {self.model.text_encoder_3.last_device}")
+            # if hasattr(self.model, 'text_encoder_3'):
+                # print(f"self.model.text_encoder_3.first_device: {self.model.text_encoder_3.first_device}")
+                # print(f"self.model.text_encoder_3.last_device: {self.model.text_encoder_3.last_device}")
             if hasattr(self.model, 'vae'):
                 print(f"self.model.vae.device: {self.model.vae.device}")
             if hasattr(self.model, 'unet'):
