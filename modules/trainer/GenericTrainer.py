@@ -619,7 +619,7 @@ class GenericTrainer(BaseTrainer):
 
             # ここにデバイスチェックのデバッグ出力を追加する
             print(f"train_device: {train_device}")
-            print(f"self.model.device: {self.model.device}")
+            # print(f"self.model.device: {self.model.device}")
             print(f"self.model_setup.train_device: {self.model_setup.train_device}")
             print(f"self.model_setup.temp_device: {self.model_setup.temp_device}")
             if hasattr(self.model, 'text_encoder'):
