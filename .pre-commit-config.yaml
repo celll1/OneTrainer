@@ -5,7 +5,7 @@ repos:
     - id: check-merge-conflict
     # - id: check-case-conflict
     - id: check-illegal-windows-names
-    # - id: destroyed-symlinks
+    # - id: destroyed-symlinks0
     - id: fix-byte-order-marker
     - id: mixed-line-ending
     - id: trailing-whitespace

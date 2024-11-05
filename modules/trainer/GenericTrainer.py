@@ -71,7 +71,11 @@ class GenericTrainer(BaseTrainer):
             print(f"Accelerator device: {self.accelerator.device.type}")
         if hasattr(self.accelerator, 'distributed_type') and self.accelerator.distributed_type:
             print(f"Distributed type: {self.accelerator.distributed_type}")
-        print(f"if accelerator is not activated, using {torch.device(self.config.train_device)}")
+        if self.accelerator.device:
+            print(f"Accelerator device: {self.accelerator.device.type}")
+        else:
+            print(f"Accelerator device: Not activated")
+            print(f"using {torch.device(self.config.train_device)}")
 
         tensorboard_log_dir = os.path.join(config.workspace_dir, "tensorboard")
         os.makedirs(Path(tensorboard_log_dir).absolute(), exist_ok=True)
@@ -614,6 +618,8 @@ class GenericTrainer(BaseTrainer):
 
             # ここにデバイスチェックのデバッグ出力を追加する
             print(f"train_device: {train_device}")
+            print(f"self.model_setup.train_device: {self.model_setup.train_device}")
+            print(f"self.model_setup.temp_device: {self.model_setup.temp_device}")
             if hasattr(self.model, 'text_encoder'):
                 print(f"self.model.text_encoder.device: {self.model.text_encoder.device}")
             if hasattr(self.model, 'text_encoder_1'):
@@ -621,7 +627,8 @@ class GenericTrainer(BaseTrainer):
             if hasattr(self.model, 'text_encoder_2'):
                 print(f"self.model.text_encoder_2.device: {self.model.text_encoder_2.device}")
             if hasattr(self.model, 'text_encoder_3'):
-                print(f"self.model.text_encoder_3.device: {self.model.text_encoder_3.device}")
+                print(f"self.model.text_encoder_3.first_device: {self.model.text_encoder_3.first_device}")
+                print(f"self.model.text_encoder_3.last_device: {self.model.text_encoder_3.last_device}")
             if hasattr(self.model, 'vae'):
                 print(f"self.model.vae.device: {self.model.vae.device}")
             if hasattr(self.model, 'unet'):
