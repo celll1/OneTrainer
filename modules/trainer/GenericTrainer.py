@@ -158,10 +158,6 @@ class GenericTrainer(BaseTrainer):
             self.model, self.model.train_progress
         )
 
-        self.data_loader, self.model = self.accelerator.prepare(
-            self.data_loader, self.model
-        )
-
         self.model_saver = self.create_model_saver()
 
         self.model_sampler = self.create_model_sampler(self.model)
@@ -173,6 +169,11 @@ class GenericTrainer(BaseTrainer):
             self.validation_data_loader = self.create_data_loader(
                 self.model, self.model.train_progress, is_validation=True
             )
+
+        self.data_loader, self.model = self.accelerator.prepare(
+            self.data_loader, self.model
+        )
+
 
     def __save_config_to_workspace(self):
         path = path_util.canonical_join(self.config.workspace_dir, "config")
@@ -635,6 +636,12 @@ class GenericTrainer(BaseTrainer):
                 print(f"self.model.vae.device: {self.model.vae.device}")
             if hasattr(self.model, 'unet'):
                 print(f"self.model.unet.device: {self.model.unet.device}")
+            if hasattr(self.model, 'transformer'):
+                print(f"self.model.transformer.device: {self.model.transformer.device}")
+            if hasattr(self.model, 'optimizer'):
+                print(f"self.model.optimizer.device: {self.model.optimizer.device}")
+            if hasattr(self.model, 'scheduler'):
+                print(f"self.model.scheduler.device: {self.model.scheduler.device}")
 
             # Special case for schedule-free optimizers, which need train()
             # called before training. Can and should move this to a callback
@@ -705,6 +712,8 @@ class GenericTrainer(BaseTrainer):
                         self.model_setup.setup_train_device(self.model, self.config)
 
                 self.callbacks.on_update_status("training")
+
+                self.model, self.data_loader, lr_scheduler = self.accelerator.prepare(self.model, self.data_loader, lr_scheduler)
 
                 with TorchMemoryRecorder(enabled=False):
                     model_output_data = self.model_setup.predict(self.model, batch, self.config, train_progress)
