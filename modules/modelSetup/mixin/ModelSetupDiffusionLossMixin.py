@@ -66,6 +66,27 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         loss = diff + torch.nn.functional.softplus(-2.0*diff) - torch.log(torch.full(size=diff.size(), fill_value=2.0, dtype=torch.float32, device=diff.device))
         return loss
 
+    def __rational_quadratic_loss(
+            self,
+            pred: torch.Tensor,
+            target: torch.Tensor,
+            k: float,
+    ):
+        diff = pred - target
+        squared_diff = diff * diff
+        loss = squared_diff / (1.0/k + squared_diff)
+        return loss
+
+    def __smoothing_sigmoid_loss(
+            self,
+            pred: torch.Tensor,
+            target: torch.Tensor,
+            k: float,
+    ):
+        diff = pred - target
+        loss = 2 * (torch.log(torch.exp(-k * diff) + 1) / k) + diff
+        return loss
+
     def __masked_losses(
             self,
             batch: dict,
@@ -128,6 +149,32 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 normalize_masked_area_loss=config.normalize_masked_area_loss,
             ).mean([1, 2, 3]) * config.vb_loss_strength
 
+        # Rational Quadratic Loss
+        if config.rational_quadratic_strength != 0:
+            losses += masked_losses(
+                losses=self.__rational_quadratic_loss(
+                    data['predicted'].to(dtype=torch.float32),
+                    data['target'].to(dtype=torch.float32),
+                    config.rational_quadratic_k,
+                ),
+                mask=batch['latent_mask'].to(dtype=torch.float32),
+                unmasked_weight=config.unmasked_weight,
+                normalize_masked_area_loss=config.normalize_masked_area_loss,
+            ).mean([1, 2, 3]) * config.rational_quadratic_strength
+
+        # Smoothing Sigmoid Loss
+        if config.smoothing_sigmoid_strength != 0:
+            losses += masked_losses(
+                losses=self.__smoothing_sigmoid_loss(
+                    data['predicted'].to(dtype=torch.float32),
+                    data['target'].to(dtype=torch.float32),
+                    config.smoothing_sigmoid_k,
+                ),
+                mask=batch['latent_mask'].to(dtype=torch.float32),
+                unmasked_weight=config.unmasked_weight,
+                normalize_masked_area_loss=config.normalize_masked_area_loss,
+            ).mean([1, 2, 3]) * config.smoothing_sigmoid_strength
+
         return losses
 
     def __unmasked_losses(
@@ -171,6 +218,22 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 predicted_eps=data['predicted'].to(dtype=torch.float32),
                 predicted_var_values=data['predicted_var_values'].to(dtype=torch.float32),
             ).mean([1, 2, 3]) * config.vb_loss_strength
+
+        # Rational Quadratic Loss
+        if config.rational_quadratic_strength != 0:
+            losses += self.__rational_quadratic_loss(
+                data['predicted'].to(dtype=torch.float32),
+                data['target'].to(dtype=torch.float32),
+                config.rational_quadratic_k,
+            ).mean([1, 2, 3]) * config.rational_quadratic_strength
+
+        # Smoothing Sigmoid Loss
+        if config.smoothing_sigmoid_strength != 0:
+            losses += self.__smoothing_sigmoid_loss(
+                data['predicted'].to(dtype=torch.float32),
+                data['target'].to(dtype=torch.float32),
+                config.smoothing_sigmoid_k,
+            ).mean([1, 2, 3]) * config.smoothing_sigmoid_strength
 
         if config.masked_training and config.normalize_masked_area_loss:
             clamped_mask = torch.clamp(batch['latent_mask'], config.unmasked_weight, 1)
