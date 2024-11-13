@@ -936,7 +936,7 @@ def create_optimizer(
                 max_lr=optimizer_config.max_lr if optimizer_config.max_lr is not None else None,
                 kahan_sum=optimizer_config.kahan_sum if optimizer_config.kahan_sum is not None else None,
                 foreach=optimizer_config.foreach if optimizer_config.foreach is not None else None,
-                gradient_release=optimizer_config.gradient_release if optimizer_config.gradient_release is not None else False,
+                gradient_release=optimizer_config.fused_back_pass if optimizer_config.fused_back_pass is not None else False,
             )
 
         # Optimi Lion
@@ -952,7 +952,7 @@ def create_optimizer(
                 max_lr=optimizer_config.max_lr if optimizer_config.max_lr is not None else None,
                 kahan_sum=optimizer_config.kahan_sum if optimizer_config.kahan_sum is not None else None,
                 foreach=optimizer_config.foreach if optimizer_config.foreach is not None else None,
-                gradient_release=optimizer_config.gradient_release if optimizer_config.gradient_release is not None else False,
+                gradient_release=optimizer_config.fused_back_pass if optimizer_config.fused_back_pass is not None else False,
             )
 
     if state_dict is not None and optimizer is not None:

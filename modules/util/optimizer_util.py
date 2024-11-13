@@ -404,7 +404,7 @@ OPTIMIZER_DEFAULT_PARAMETERS = {
         "max_lr": None,
         "kahan_sum": None,
         "foreach": None,
-        "gradient_release": False,
+        "fused_back_pass": False,  # instead of gradient_release
     },
     Optimizer.OPTIMI_LION: {
         "beta1": 0.9,
@@ -414,6 +414,6 @@ OPTIMIZER_DEFAULT_PARAMETERS = {
         "max_lr": None,
         "kahan_sum": None,
         "foreach": None,
-        "gradient_release": False,
+        "fused_back_pass": False,  # instead of gradient_release
     },
 }
