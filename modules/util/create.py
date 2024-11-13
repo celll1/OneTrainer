@@ -923,6 +923,38 @@ def create_optimizer(
                 eps=optimizer_config.eps if optimizer_config.eps is not None else 1e-8,
             )
 
+        # Optimi AdamW
+        case Optimizer.OPTIMI_ADAMW:
+            import optimi as op
+            optimizer = op.AdamW(
+                params=parameters,
+                lr=config.learning_rate,
+                betas=(optimizer_config.beta1 if optimizer_config.beta1 is not None else 0.9,
+                      optimizer_config.beta2 if optimizer_config.beta2 is not None else 0.999),
+                weight_decay=optimizer_config.weight_decay if optimizer_config.weight_decay is not None else 0,
+                decouple_lr=optimizer_config.decouple_lr if optimizer_config.decouple_lr is not None else False,
+                max_lr=optimizer_config.max_lr if optimizer_config.max_lr is not None else None,
+                kahan_sum=optimizer_config.kahan_sum if optimizer_config.kahan_sum is not None else None,
+                foreach=optimizer_config.foreach if optimizer_config.foreach is not None else None,
+                gradient_release=optimizer_config.gradient_release if optimizer_config.gradient_release is not None else False,
+            )
+
+        # Optimi Lion
+        case Optimizer.OPTIMI_LION:
+            import optimi as op
+            optimizer = op.Lion(
+                params=parameters,
+                lr=config.learning_rate,
+                betas=(optimizer_config.beta1 if optimizer_config.beta1 is not None else 0.9,
+                      optimizer_config.beta2 if optimizer_config.beta2 is not None else 0.99),
+                weight_decay=optimizer_config.weight_decay if optimizer_config.weight_decay is not None else 0,
+                decouple_lr=optimizer_config.decouple_lr if optimizer_config.decouple_lr is not None else False,
+                max_lr=optimizer_config.max_lr if optimizer_config.max_lr is not None else None,
+                kahan_sum=optimizer_config.kahan_sum if optimizer_config.kahan_sum is not None else None,
+                foreach=optimizer_config.foreach if optimizer_config.foreach is not None else None,
+                gradient_release=optimizer_config.gradient_release if optimizer_config.gradient_release is not None else False,
+            )
+
     if state_dict is not None and optimizer is not None:
         if 'param_group_mapping' not in state_dict:
             # Old method of loading the optimizer state. This only works if the param groups did not change.

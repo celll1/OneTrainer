@@ -62,6 +62,9 @@ class Optimizer(Enum):
     TIGER = 'TIGER'
     AIDA = 'AIDA'
 
+    OPTIMI_ADAMW = "optimi_adamw"
+    OPTIMI_LION = "optimi_lion"
+
     @property
     def is_adaptive(self):
         return self in [
@@ -86,6 +89,8 @@ class Optimizer(Enum):
             Optimizer.CAME,
             Optimizer.ADAM,
             Optimizer.ADAMW,
+            Optimizer.OPTIMI_ADAMW,
+            Optimizer.OPTIMI_LION,
         ]
 
     # Small helper for adjusting learning rates to adaptive optimizers.
