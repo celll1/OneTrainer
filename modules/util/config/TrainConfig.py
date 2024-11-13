@@ -89,6 +89,9 @@ class TrainOptimizerConfig(BaseConfig):
     r: float
     adanorm: bool
     adam_debias: bool
+    decouple_lr: bool
+    max_lr: float
+    kahan_sum: bool
 
     def __init__(self, data: list[(str, Any, type, bool)]):
         super().__init__(data)
@@ -156,6 +159,9 @@ class TrainOptimizerConfig(BaseConfig):
         data.append(("r", None, float, True))
         data.append(("adanorm", False, bool, False))
         data.append(("adam_debias", False, bool, False))
+        data.append(("decouple_lr", False, bool, False))
+        data.append(("max_lr", None, float, True))
+        data.append(("kahan_sum", False, bool, False))
 
         return TrainOptimizerConfig(data)
 
