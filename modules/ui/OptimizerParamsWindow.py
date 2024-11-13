@@ -143,18 +143,18 @@ class OptimizerParamsWindow(ctk.CTkToplevel):
             'adanorm': {'title': 'AdaNorm', 'tooltip': 'Whether to use the AdaNorm variant', 'type': 'bool'},
             'adam_debias': {'title': 'Adam Debias', 'tooltip': 'Only correct the denominator to avoid inflating step sizes early in training.', 'type': 'bool'},
             'decouple_lr': {
-                "display_name": "Decouple Learning Rate",
-                "description": "Whether to decouple the learning rate from weight decay",
+                "title": "Decouple Learning Rate",
+                "tooltip": "Whether to decouple the learning rate from weight decay",
                 "type": "bool"
             },
             'max_lr': {
-                "display_name": "Maximum Learning Rate",
-                "description": "Maximum learning rate value",
+                "title": "Maximum Learning Rate",
+                "tooltip": "Maximum learning rate value",
                 "type": "float"
             },
             'kahan_sum': {
-                "display_name": "Kahan Summation",
-                "description": "Whether to use Kahan summation for more accurate floating-point arithmetic",
+                "title": "Kahan Summation",
+                "tooltip": "Whether to use Kahan summation for more accurate floating-point arithmetic",
                 "type": "bool"
             }
         }
