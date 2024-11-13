@@ -31,13 +31,13 @@ def encode_clip(
     chunk_embeddings = []
     pooled_outputs = []
 
-    for chunk in enumerate(chunks):
+    for i, chunk in enumerate(chunks):
         if chunk.numel() == 0:
             continue
 
         chunk = chunk.to(text_encoder_device)
 
-        # chunk_attention_mask = torch.ones_like(chunk, dtype=torch.bool, device=text_encoder_device)
+        chunk_attention_mask = torch.ones_like(chunk, dtype=torch.bool, device=text_encoder_device)
 
         bos_tokens = torch.full((chunk.shape[0], 1),
                               text_encoder.config.bos_token_id,
@@ -49,11 +49,11 @@ def encode_clip(
                               device=text_encoder_device)
 
         chunk = torch.cat([bos_tokens, chunk, eos_tokens], dim=1)
-        # chunk_attention_mask = torch.cat([
-        #     torch.zeros_like(bos_tokens, dtype=torch.bool) if i > 0 else torch.ones_like(bos_tokens, dtype=torch.bool),
-        #     chunk_attention_mask,
-        #     torch.zeros_like(eos_tokens, dtype=torch.bool) if i < len(chunks) - 1 else torch.ones_like(eos_tokens, dtype=torch.bool)
-        # ], dim=1)
+        chunk_attention_mask = torch.cat([
+            torch.zeros_like(bos_tokens, dtype=torch.bool) if i > 0 else torch.ones_like(bos_tokens, dtype=torch.bool),
+            chunk_attention_mask,
+            torch.zeros_like(eos_tokens, dtype=torch.bool) if i < len(chunks) - 1 else torch.ones_like(eos_tokens, dtype=torch.bool)
+        ], dim=1)
 
         if chunk.shape[1] < chunk_length + 2:
             padding = torch.full(
@@ -63,14 +63,14 @@ def encode_clip(
                 device=text_encoder_device
             )
             chunk = torch.cat([chunk, padding], dim=1)
-            # chunk_attention_mask = torch.cat([
-            #     chunk_attention_mask,
-            #     torch.zeros_like(padding, dtype=torch.bool)
-            # ], dim=1)
+            chunk_attention_mask = torch.cat([
+                chunk_attention_mask,
+                torch.zeros_like(padding, dtype=torch.bool)
+            ], dim=1)
 
         outputs = text_encoder(
             chunk,
-            attention_mask=attention_mask if use_attention_mask else None,
+            attention_mask=chunk_attention_mask if use_attention_mask else None,
             return_dict=True,
             output_hidden_states=True,
         )
