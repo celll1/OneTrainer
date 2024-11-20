@@ -95,6 +95,10 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
     ):
         losses = 0
 
+        # guard for infinite or NaN values in predicted
+        if torch.isinf(data['predicted']).any() or torch.isnan(data['predicted']).any():
+            print(f"Warning: Infinite or NaN values detected in predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
+
         # MSE/L2 Loss
         if config.mse_strength != 0:
             losses += masked_losses(
@@ -175,6 +179,13 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 normalize_masked_area_loss=config.normalize_masked_area_loss,
             ).mean([1, 2, 3]) * config.smoothing_sigmoid_strength
 
+        # guard for infinite or NaN values in losses
+        if losses.isnan().any() or losses.isinf().any():
+            print(f"Warning: NaN or Infinite values detected in losses - inf: {losses.isinf().sum()}, nan: {losses.isnan().sum()}")
+            print(f"predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
+            print(f"predicted max: {data['predicted'].max()}, min: {data['predicted'].min()}")
+            raise ValueError("NaN or Infinite values detected in losses")
+
         return losses
 
     def __unmasked_losses(
@@ -184,6 +195,10 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             config: TrainConfig,
     ):
         losses = 0
+
+        # guard for infinite or NaN values in predicted
+        if torch.isinf(data['predicted']).any() or torch.isnan(data['predicted']).any():
+            print(f"Warning: Infinite or NaN values detected in predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
 
         # MSE/L2 Loss
         if config.mse_strength != 0:
@@ -239,6 +254,13 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             clamped_mask = torch.clamp(batch['latent_mask'], config.unmasked_weight, 1)
             mask_mean = clamped_mask.mean(dim=(1, 2, 3))
             losses /= mask_mean
+
+        # guard for infinite or NaN values in losse
+        if losses.isnan().any() or losses.isinf().any():
+            print(f"Warning: NaN or Infinite values detected in losses - inf: {losses.isinf().sum()}, nan: {losses.isnan().sum()}")
+            print(f"predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
+            print(f"predicted max: {data['predicted'].max()}, min: {data['predicted'].min()}")
+            raise ValueError("NaN or Infinite values detected in losses")
 
         return losses
 
