@@ -84,7 +84,7 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             k: float,
     ):
         diff = pred - target
-        loss = 2 * (torch.log(torch.exp(-k * diff) + 1) / k) + diff
+        loss = diff + ( torch.nn.functional.softplus(-2.0*k*diff) - torch.log(torch.full(size=diff.size(), fill_value=2.0, dtype=torch.float32, device=diff.device)) ) / k
         return loss
 
     def __masked_losses(
