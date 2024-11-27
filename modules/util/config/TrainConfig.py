@@ -292,8 +292,8 @@ class TrainConfig(BaseConfig):
     mse_strength: float
     mae_strength: float
     log_cosh_strength: float
-    # rational_quadratic_strength: float
-    # rational_quadratic_k: float
+    rational_quadratic_strength: float
+    rational_quadratic_k: float
     smoothing_sigmoid_strength: float
     smoothing_sigmoid_k: float
     vb_loss_strength: float
