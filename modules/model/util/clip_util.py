@@ -31,7 +31,7 @@ def encode_clip(
     chunk_embeddings = []
     pooled_outputs = []
 
-    for chunk in enumerate(chunks):
+    for _, chunk in enumerate(chunks):
         if chunk.numel() == 0:
             continue
 
