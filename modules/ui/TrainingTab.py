@@ -363,6 +363,11 @@ class TrainingTab:
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, 4, 1, self.ui_state, "text_encoder_layer_skip")
 
+        # text encoder max token length
+        components.label(frame, 5, 0, "Text Encoder Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder model")
+        components.entry(frame, 5, 1, self.ui_state, "text_encoder_max_token_length")
+
     def __create_text_encoder_1_frame(self, master, row, supports_include: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
         frame.grid(row=row, column=0, padx=5, pady=5, sticky="nsew")
@@ -411,6 +416,12 @@ class TrainingTab:
         components.label(frame, row, 0, "Text Encoder 1 Clip Skip",
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, row, 1, self.ui_state, "text_encoder_layer_skip")
+        row += 1
+
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 1 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 1 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_max_token_length")
         row += 1
 
     def __create_text_encoder_2_frame(self, master, row, supports_include: bool = False):
@@ -463,6 +474,12 @@ class TrainingTab:
         components.entry(frame, row, 1, self.ui_state, "text_encoder_2_layer_skip")
         row += 1
 
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 2 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 2 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_2_max_token_length")
+        row += 1
+
     def __create_text_encoder_3_frame(self, master, row, supports_include: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
         frame.grid(row=row, column=0, padx=5, pady=5, sticky="nsew")
@@ -511,6 +528,12 @@ class TrainingTab:
         components.label(frame, row, 0, "Text Encoder 3 Clip Skip",
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, row, 1, self.ui_state, "text_encoder_3_layer_skip")
+        row += 1
+
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 3 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 3 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_3_max_token_length")
         row += 1
 
     def __create_embedding_frame(self, master, row):
