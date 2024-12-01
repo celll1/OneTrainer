@@ -16,90 +16,90 @@ def encode_clip(
         use_attention_mask: bool = True,
         attention_mask: Tensor | None = None,
         add_layer_norm: bool = True,
+        chunk_length: int = 75,
+        max_embeddings_multiples: int = 3,
 ) -> tuple[Tensor, Tensor]:
-    chunk_length = 75
-    max_embeddings_multiples = 3
+    if (add_output and text_encoder_output is None) \
+        or (add_pooled_output and pooled_text_encoder_output is None) \
+        and text_encoder is not None:
 
-    if tokens is None or tokens.numel() == 0:
-        return None, None
+        if tokens is None or tokens.numel() == 0:
+            return None, None
 
-    # デバイスの取得と保存
-    original_device = tokens.device
-    text_encoder_device = next(text_encoder.parameters()).device
+        original_device = tokens.device
+        text_encoder_device = next(text_encoder.parameters()).device
+        tokens = tokens.to(text_encoder_device)
 
-    chunks = [tokens[:, i:i + chunk_length] for i in range(0, tokens.shape[1], chunk_length)]
-    chunk_embeddings = []
-    pooled_outputs = []
+        if tokens.dim() == 1:
+            tokens = tokens.unsqueeze(0)
 
-    for _, chunk in enumerate(chunks):
-        if chunk.numel() == 0:
-            continue
+        # チャンクに分割
+        chunks = []
+        for i in range(0, tokens.shape[1], chunk_length):
+            chunk = tokens[:, i:i + chunk_length]
+            if chunk.numel() > 0:
+                # 最後のチャンクがchunk_lengthより小さい場合、パディング
+                if chunk.shape[1] < chunk_length:
+                    padding = torch.full(
+                        (chunk.shape[0], chunk_length - chunk.shape[1]),
+                        text_encoder.config.pad_token_id,
+                        dtype=chunk.dtype,
+                        device=chunk.device
+                    )
+                    chunk = torch.cat([chunk, padding], dim=1)
+                if not (chunk == chunk[:, 0:1]).all():
+                    chunks.append(chunk)
 
-        chunk = chunk.to(text_encoder_device)
+        if not chunks:
+            return None, None
 
-        # chunk_attention_mask = torch.ones_like(chunk, dtype=torch.bool, device=text_encoder_device)
+        # max_embeddings_multiplesまでに制限
+        if len(chunks) > max_embeddings_multiples:
+            chunks = chunks[:max_embeddings_multiples]
 
-        bos_tokens = torch.full((chunk.shape[0], 1),
-                              text_encoder.config.bos_token_id,
-                              dtype=chunk.dtype,
-                              device=text_encoder_device)
-        eos_tokens = torch.full((chunk.shape[0], 1),
-                              text_encoder.config.eos_token_id,
-                              dtype=chunk.dtype,
-                              device=text_encoder_device)
+        # バッチ化して処理
+        batched_chunks = torch.cat(chunks, dim=0)
 
-        chunk = torch.cat([bos_tokens, chunk, eos_tokens], dim=1)
-        # chunk_attention_mask = torch.cat([
-        #     torch.zeros_like(bos_tokens, dtype=torch.bool) if i > 0 else torch.ones_like(bos_tokens, dtype=torch.bool),
-        #     chunk_attention_mask,
-        #     torch.zeros_like(eos_tokens, dtype=torch.bool) if i < len(chunks) - 1 else torch.ones_like(eos_tokens, dtype=torch.bool)
-        # ], dim=1)
-
-        if chunk.shape[1] < chunk_length + 2:
-            padding = torch.full(
-                (chunk.shape[0], chunk_length + 2 - chunk.shape[1]),
-                text_encoder.config.eos_token_id,
-                dtype=chunk.dtype,
-                device=text_encoder_device
-            )
-            chunk = torch.cat([chunk, padding], dim=1)
-            # chunk_attention_mask = torch.cat([
-            #     chunk_attention_mask,
-            #     torch.zeros_like(padding, dtype=torch.bool)
-            # ], dim=1)
+        # BOS/EOSトークンを追加
+        bos_tokens = torch.full((batched_chunks.shape[0], 1),
+                            text_encoder.config.bos_token_id,
+                            dtype=batched_chunks.dtype,
+                            device=batched_chunks.device)
+        eos_tokens = torch.full((batched_chunks.shape[0], 1),
+                            text_encoder.config.eos_token_id,
+                            dtype=batched_chunks.dtype,
+                            device=batched_chunks.device)
+        batched_chunks = torch.cat([bos_tokens, batched_chunks, eos_tokens], dim=1)
 
         outputs = text_encoder(
-            chunk,
+            batched_chunks,
             attention_mask=attention_mask if use_attention_mask else None,
             return_dict=True,
             output_hidden_states=True,
         )
 
         if add_output:
-            embedding = outputs.hidden_states[default_layer - layer_skip]
-            embedding = embedding.to(original_device)
-            chunk_embeddings.append(embedding)
+            embeddings = outputs.hidden_states[default_layer - layer_skip]
+            if add_layer_norm:
+                final_layer_norm = text_encoder.text_model.final_layer_norm
+                embeddings = final_layer_norm(embeddings)
+
+            # チャンクを元に戻して結合
+            chunk_embeddings = list(embeddings.chunk(len(chunks)))
+            text_encoder_output = torch.cat(chunk_embeddings, dim=1).to(original_device)
+        else:
+            text_encoder_output = None
 
         if add_pooled_output:
             if hasattr(outputs, "text_embeds"):
-                pooled = outputs.text_embeds.to(original_device)
-                pooled_outputs.append(pooled)
+                pooled = outputs.text_embeds
             elif hasattr(outputs, "pooler_output"):
-                pooled = outputs.pooler_output.to(original_device)
-                pooled_outputs.append(pooled)
+                pooled = outputs.pooler_output
 
-    if add_output:
-        if chunk_embeddings and len(chunk_embeddings) > max_embeddings_multiples:
-            chunk_embeddings = chunk_embeddings[:max_embeddings_multiples]
-        text_encoder_output = torch.cat(chunk_embeddings, dim=1)
-    else:
-        text_encoder_output = None
-
-    if add_pooled_output:
-        if pooled_outputs and len(pooled_outputs) > max_embeddings_multiples:
-            pooled_outputs = pooled_outputs[:max_embeddings_multiples]
-        pooled_text_encoder_output = pooled_outputs[0] if pooled_outputs else None
-    else:
-        pooled_text_encoder_output = None
+            # 最初のチャンクのプール出力のみを使用
+            pooled_outputs = list(pooled.chunk(len(chunks)))
+            pooled_text_encoder_output = pooled_outputs[0].to(original_device)
+        else:
+            pooled_text_encoder_output = None
 
     return text_encoder_output, pooled_text_encoder_output

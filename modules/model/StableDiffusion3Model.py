@@ -214,6 +214,11 @@ class StableDiffusion3Model(BaseModel):
             text_encoder_1_layer_skip: int = 0,
             text_encoder_2_layer_skip: int = 0,
             text_encoder_3_layer_skip: int = 0,
+            text_encoder_max_token_length: int = 225,
+            text_encoder_2_max_token_length: int = 225,
+            text_encoder_3_max_token_length: int = 256,
+            chunk_length: int = 75,
+            max_embeddings_multiples: int = 3,
             text_encoder_1_dropout_probability: float | None = None,
             text_encoder_2_dropout_probability: float | None = None,
             text_encoder_3_dropout_probability: float | None = None,
@@ -224,13 +229,19 @@ class StableDiffusion3Model(BaseModel):
             pooled_text_encoder_2_output: Tensor = None,
             text_encoder_3_output: Tensor = None,
     ) -> tuple[Tensor, Tensor]:
+        max_token_length = min(
+            text_encoder_max_token_length,
+            text_encoder_2_max_token_length,
+        )
+        max_embeddings_multiples = max(max_token_length // chunk_length + 1, max_embeddings_multiples)
+
         # tokenize prompt
         if tokens_1 is None and text is not None and self.tokenizer_1 is not None:
             tokenizer_output = self.tokenizer_1(
                 text,
                 padding='max_length',
-                truncation=False,
-                # max_length=77,
+                truncation=True,
+                max_length=max_token_length,
                 return_tensors="pt",
             )
             tokens_1 = tokenizer_output.input_ids.to(self.text_encoder_1.device)
@@ -240,8 +251,8 @@ class StableDiffusion3Model(BaseModel):
             tokenizer_output = self.tokenizer_2(
                 text,
                 padding='max_length',
-                truncation=False,
-                # max_length=77,
+                truncation=True,
+                max_length=max_token_length,
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)
@@ -250,9 +261,9 @@ class StableDiffusion3Model(BaseModel):
         if tokens_3 is None and text is not None and self.tokenizer_3 is not None:
             tokenizer_output = self.tokenizer_3(
                 text,
-                padding='max_length',
+                padding=False,
                 truncation=True,
-                max_length=256,
+                max_length=text_encoder_3_max_token_length,
                 return_tensors="pt",
             )
             tokens_3 = tokenizer_output.input_ids.to(self.text_encoder_3.device)
@@ -268,6 +279,8 @@ class StableDiffusion3Model(BaseModel):
             pooled_text_encoder_output=pooled_text_encoder_1_output,
             use_attention_mask=False,
             add_layer_norm=False,
+            chunk_length=chunk_length,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
         if text_encoder_1_output is None or pooled_text_encoder_1_output is None:
             pooled_text_encoder_1_output = torch.zeros(
@@ -296,6 +309,8 @@ class StableDiffusion3Model(BaseModel):
             pooled_text_encoder_output=pooled_text_encoder_2_output,
             use_attention_mask=False,
             add_layer_norm=False,
+            chunk_length=chunk_length,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
         if text_encoder_2_output is None or pooled_text_encoder_2_output is None:
             pooled_text_encoder_2_output = torch.zeros(
