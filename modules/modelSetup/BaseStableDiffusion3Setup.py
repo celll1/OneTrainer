@@ -521,14 +521,11 @@ class BaseStableDiffusion3Setup(
 
             flow = latent_noise - scaled_latent_image
 
-            scaled_flow = flow * sigma # equal to scaled_noisy_latent_image - scaled_latent_image
-            scaled_predicted_flow = predicted_flow * sigma
-
             model_output_data = {
                 'loss_type': 'target',
                 'timestep': timestep,
-                'predicted': scaled_predicted_flow,
-                'target': scaled_flow,
+                'predicted': predicted_flow,
+                'target': flow,
             }
 
             if config.debug_mode:

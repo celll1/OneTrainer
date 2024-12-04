@@ -377,6 +377,20 @@ class StableDiffusion3Model(BaseModel):
                 device=train_device)).float()
             text_encoder_3_output = text_encoder_3_output * dropout_text_encoder_3_mask[:, None, None]
 
+        # Pad the shorter tensor with zeros to match the longer one's sequence length
+        max_seq_len = max(text_encoder_1_output.shape[1], text_encoder_2_output.shape[1])
+
+        if text_encoder_1_output.shape[1] < max_seq_len:
+            text_encoder_1_output = torch.nn.functional.pad(
+                text_encoder_1_output,
+                (0, 0, 0, max_seq_len - text_encoder_1_output.shape[1])
+            )
+        if text_encoder_2_output.shape[1] < max_seq_len:
+            text_encoder_2_output = torch.nn.functional.pad(
+                text_encoder_2_output,
+                (0, 0, 0, max_seq_len - text_encoder_2_output.shape[1])
+            )
+
         # build the conditioning tensor
         prompt_embedding = torch.concat(
             [text_encoder_1_output, text_encoder_2_output], dim=-1

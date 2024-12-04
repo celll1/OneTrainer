@@ -301,6 +301,8 @@ class TrainConfig(BaseConfig):
     loss_weight_fn: LossWeight
     loss_weight_strength: float
     dropout_probability: float
+    logit_normal_mean: float
+    logit_normal_std: float
     loss_scaler: LossScaler
     learning_rate_scaler: LearningRateScaler
     clip_grad_norm: float
@@ -761,6 +763,8 @@ class TrainConfig(BaseConfig):
         data.append(("loss_weight_fn", LossWeight.CONSTANT, LossWeight, False))
         data.append(("loss_weight_strength", 5.0, float, False))
         data.append(("dropout_probability", 0.0, float, False))
+        data.append(("logit_normal_mean", 0.0, float, False))
+        data.append(("logit_normal_std", 1.0, float, False))
         data.append(("loss_scaler", LossScaler.NONE, LossScaler, False))
         data.append(("learning_rate_scaler", LearningRateScaler.NONE, LearningRateScaler, False))
         data.append(("clip_grad_norm", 1.0, float, True))

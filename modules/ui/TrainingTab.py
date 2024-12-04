@@ -748,10 +748,20 @@ class TrainingTab:
                          tooltip="Inverse strength of loss weighting. Range: 1-20, only applies to Min SNR and P2.")
         components.entry(frame, 9, 1, self.ui_state, "loss_weight_strength")
 
+        # Logit Normal Mean
+        components.label(frame, 10, 0, "Logit Normal Mean",
+                         tooltip="Mean of the logit normal distribution used for loss weighting")
+        components.entry(frame, 10, 1, self.ui_state, "logit_normal_mean")
+
+        # Logit Normal Std
+        components.label(frame, 11, 0, "Logit Normal Std",
+                         tooltip="Std of the logit normal distribution used for loss weighting")
+        components.entry(frame, 11, 1, self.ui_state, "logit_normal_std")
+
         # Loss Scaler
-        components.label(frame, 10, 0, "Loss Scaler",
+        components.label(frame, 12, 0, "Loss Scaler",
                          tooltip="Selects the type of loss scaling to use during training. Functionally equated as: Loss * selection")
-        components.options(frame, 10, 1, [str(x) for x in list(LossScaler)], self.ui_state, "loss_scaler")
+        components.options(frame, 12, 1, [str(x) for x in list(LossScaler)], self.ui_state, "loss_scaler")
 
     def __open_optimizer_params_window(self):
         window = OptimizerParamsWindow(self.master, self.train_config, self.ui_state)
