@@ -431,9 +431,9 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         if sigmas is not None and 'timestep' in data:
             match config.loss_weight_fn:
                 case LossWeight.SIGMA:
-                    losses *= self.__sigma_weight(sigmas, config, data['timestep'])
+                    losses *= self.__sigma_weight(sigmas.flip(0), config, data['timestep'])
                 case LossWeight.LOGIT_NORMAL:
-                    losses *= self.__logit_normal_weight(sigmas, config, data['timestep'])
+                    losses *= self.__logit_normal_weight(sigmas.flip(0), config, data['timestep'])
 
         # Scale Losses by Batch and/or GA (if enabled)
         losses = losses * batch_size_scale * gradient_accumulation_steps_scale

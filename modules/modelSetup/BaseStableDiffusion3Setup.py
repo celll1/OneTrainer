@@ -530,10 +530,18 @@ class BaseStableDiffusion3Setup(
 
             if config.debug_mode:
                 with torch.no_grad():
+                    debug_text = (
+                        f"Step: {model.train_progress.global_step}\n"
+                        f"Timestep: {timestep}\n"
+                        # f"Sigma: {sigma}\n"
+                        # f"Predicted Flow L2 Norm: {torch.norm(predicted_flow, p=2).item()}\n"
+                        f"Caption: {self._decode_tokens(batch['tokens_1'], model.tokenizer_1)}"
+                    )
+
                     self._save_text(
-                        self._decode_tokens(batch['tokens_1'], model.tokenizer_1),
+                        debug_text,
                         config.debug_dir + "/training_batches",
-                        "7-prompt",
+                        "7-debug_info",
                         train_progress.global_step,
                     )
 

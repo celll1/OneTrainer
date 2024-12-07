@@ -61,6 +61,7 @@ class Optimizer(Enum):
     ADABELIEF = 'ADABELIEF'
     TIGER = 'TIGER'
     AIDA = 'AIDA'
+    ADAFACTOR_PYTORCH = 'ADAFACTOR_PYTORCH'
 
     @property
     def is_adaptive(self):
@@ -86,6 +87,7 @@ class Optimizer(Enum):
             Optimizer.CAME,
             Optimizer.ADAM,
             Optimizer.ADAMW,
+            Optimizer.ADAFACTOR_PYTORCH,
         ]
 
     # Small helper for adjusting learning rates to adaptive optimizers.

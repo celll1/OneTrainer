@@ -923,6 +923,29 @@ def create_optimizer(
                 eps=optimizer_config.eps if optimizer_config.eps is not None else 1e-8,
             )
 
+        # ADAFACTOR_PYTORCH Optimizer
+        case Optimizer.ADAFACTOR_PYTORCH:
+            from pytorch_optimizer.optimizer.adafactor import AdaFactor
+            optimizer = AdaFactor(
+                params=parameters,
+                lr=config.learning_rate if config.learning_rate is not None else 0,
+                betas=(optimizer_config.beta1 if optimizer_config.beta1 is not None else 0.9,
+                       optimizer_config.beta2 if optimizer_config.beta2 is not None else 0.999),
+                decay_rate=optimizer_config.decay_rate if optimizer_config.decay_rate is not None else -0.8,
+                weight_decay=optimizer_config.weight_decay if optimizer_config.weight_decay is not None else 0.0,
+                weight_decouple=optimizer_config.weight_decouple if optimizer_config.weight_decouple is not None else True,
+                fixed_decay=optimizer_config.fixed_decay if optimizer_config.fixed_decay is not None else False,
+                clip_threshold=optimizer_config.clip_threshold if optimizer_config.clip_threshold is not None else 1.0,
+                ams_bound=optimizer_config.ams_bound if optimizer_config.ams_bound is not None else False,
+                scale_parameter=optimizer_config.scale_parameter if optimizer_config.scale_parameter is not None else True,
+                relative_step=optimizer_config.relative_step if optimizer_config.relative_step is not None else True,
+                warmup_init=optimizer_config.warmup_init if optimizer_config.warmup_init is not None else False,
+                eps1=optimizer_config.eps1 if optimizer_config.eps1 is not None else 1e-30,
+                eps2=optimizer_config.eps2 if optimizer_config.eps2 is not None else 1e-3,
+                momentum_dtype=torch.bfloat16,
+                cautious=optimizer_config.cautious if optimizer_config.cautious is not None else False,
+            )
+
     if state_dict is not None and optimizer is not None:
         if 'param_group_mapping' not in state_dict:
             # Old method of loading the optimizer state. This only works if the param groups did not change.
