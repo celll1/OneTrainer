@@ -19,12 +19,14 @@ from torch import Tensor
 class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
     __coefficients: DiffusionScheduleCoefficients | None
     __alphas_cumprod_fun: Callable[[Tensor, int], Tensor] | None
+    __sigmas: Tensor | None
 
     def __init__(self):
         super().__init__()
         self.__align_prop_loss_fn = None
         self.__coefficients = None
         self.__alphas_cumprod_fun = None
+        self.__sigmas = None
 
     def __align_prop_losses(
             self,
@@ -276,7 +278,6 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
 
         return snr
 
-
     def __min_snr_weight(
             self,
             timesteps: Tensor,
@@ -321,35 +322,12 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             snr += 1.0
         return (1.0 + snr) ** -gamma
 
-    def __sigma_weight(
-            self,
-            sigmas: Tensor,
-            config: TrainConfig,
-            timesteps: Tensor,
+    def __sigma_loss_weight(
+        self,
+        timesteps: Tensor,
+        device: torch.device,
     ) -> Tensor:
-        return sigmas[timesteps]
-
-    def __logit_normal_weight(
-            self,
-            sigmas: Tensor,
-            config: TrainConfig,
-            timesteps: Tensor,
-    ) -> Tensor:
-        x = sigmas[timesteps]
-
-        x = torch.clamp(x, min=1e-5, max=1-1e-5)
-
-        logit_x = torch.log(x / (1 - x))
-
-        mean = config.logit_normal_mean
-        std = config.logit_normal_std
-
-        # 1/std√2pi・1/x(1-x)・e^(-(logit(x)-mean)^2/2s^2)
-        norm_const = 1.0 / (std * torch.sqrt(torch.tensor(2.0 * torch.pi)))
-        jacobian = 1.0 / (x * (1.0 - x))
-        exp_term = torch.exp(-0.5 * ((logit_x - mean) / std) ** 2)
-
-        return norm_const * jacobian * exp_term
+        return self.__sigmas[timesteps].to(device=device)
 
     def _diffusion_losses(
             self,
@@ -417,6 +395,11 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             1 if config.loss_scaler in [LossScaler.NONE, LossScaler.BATCH] \
                 else config.gradient_accumulation_steps
 
+        if self.__sigmas is None and sigmas is not None:
+            num_timesteps = sigmas.shape[0]
+            all_timesteps = torch.arange(start=1, end=num_timesteps + 1, step=1, dtype=torch.int32, device=sigmas.device)
+            self.__sigmas = all_timesteps / num_timesteps
+
         if data['loss_type'] == 'align_prop':
             losses = self.__align_prop_losses(batch, data, config, train_device)
         else:
@@ -439,5 +422,11 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         losses = losses * batch_size_scale * gradient_accumulation_steps_scale
 
         losses *= loss_weight.to(device=losses.device, dtype=losses.dtype)
+
+        # Apply timestep based loss weighting.
+        if 'timestep' in data and data['loss_type'] != 'align_prop':
+            match config.loss_weight_fn:
+                case LossWeight.SIGMA:
+                    losses *= self.__sigma_loss_weight(data['timestep'], losses.device)
 
         return losses
