@@ -337,8 +337,6 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
     ) -> Tensor:
         x = self.__sigmas[timesteps]
 
-        # x = torch.clamp(x, min=1e-5, max=1-1e-5)
-
         logit_x = torch.log(x / (1 - x))
 
         mean = config.logit_normal_mean

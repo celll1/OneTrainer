@@ -408,7 +408,7 @@ OPTIMIZER_DEFAULT_PARAMETERS = {
         "scale_parameter": True,
         "relative_step": True,
         "warmup_init": False,
-        "eps1": 1e-30,
+        "eps": 1e-30,
         "eps2": 1e-3,
         # "momentum_dtype": "bfloat16",
         "cautious": False,

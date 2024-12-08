@@ -940,7 +940,7 @@ def create_optimizer(
                 scale_parameter=optimizer_config.scale_parameter if optimizer_config.scale_parameter is not None else True,
                 relative_step=optimizer_config.relative_step if optimizer_config.relative_step is not None else True,
                 warmup_init=optimizer_config.warmup_init if optimizer_config.warmup_init is not None else False,
-                eps1=optimizer_config.eps1 if optimizer_config.eps1 is not None else 1e-30,
+                eps=optimizer_config.eps if optimizer_config.eps is not None else 1e-30,
                 eps2=optimizer_config.eps2 if optimizer_config.eps2 is not None else 1e-3,
                 momentum_dtype=torch.bfloat16,
                 cautious=optimizer_config.cautious if optimizer_config.cautious is not None else False,
