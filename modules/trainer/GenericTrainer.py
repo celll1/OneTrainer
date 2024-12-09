@@ -38,7 +38,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.functional import pil_to_tensor
 
 from PIL.Image import Image
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 class GenericTrainer(BaseTrainer):
