@@ -295,10 +295,16 @@ class TrainConfig(BaseConfig):
     mse_strength: float
     mae_strength: float
     log_cosh_strength: float
+    rational_quadratic_strength: float
+    rational_quadratic_k: float
+    smoothing_sigmoid_strength: float
+    smoothing_sigmoid_k: float
     vb_loss_strength: float
     loss_weight_fn: LossWeight
     loss_weight_strength: float
     dropout_probability: float
+    logit_normal_mean: float
+    logit_normal_std: float
     loss_scaler: LossScaler
     learning_rate_scaler: LearningRateScaler
     clip_grad_norm: float
@@ -325,14 +331,17 @@ class TrainConfig(BaseConfig):
     # text encoder
     text_encoder: TrainModelPartConfig
     text_encoder_layer_skip: int
+    text_encoder_max_token_length: int
 
     # text encoder 2
     text_encoder_2: TrainModelPartConfig
     text_encoder_2_layer_skip: int
+    text_encoder_2_max_token_length: int
 
     # text encoder 3
     text_encoder_3: TrainModelPartConfig
     text_encoder_3_layer_skip: int
+    text_encoder_3_max_token_length: int
 
     # vae
     vae: TrainModelPartConfig
@@ -748,10 +757,16 @@ class TrainConfig(BaseConfig):
         data.append(("mse_strength", 1.0, float, False))
         data.append(("mae_strength", 0.0, float, False))
         data.append(("log_cosh_strength", 0.0, float, False))
+        data.append(("rational_quadratic_strength", 0.0, float, False))
+        data.append(("rational_quadratic_k", 1.0, float, False))
+        data.append(("smoothing_sigmoid_strength", 0.0, float, False))
+        data.append(("smoothing_sigmoid_k", 20.0, float, False))
         data.append(("vb_loss_strength", 1.0, float, False))
         data.append(("loss_weight_fn", LossWeight.CONSTANT, LossWeight, False))
         data.append(("loss_weight_strength", 5.0, float, False))
         data.append(("dropout_probability", 0.0, float, False))
+        data.append(("logit_normal_mean", 0.0, float, False))
+        data.append(("logit_normal_std", 1.0, float, False))
         data.append(("loss_scaler", LossScaler.NONE, LossScaler, False))
         data.append(("learning_rate_scaler", LearningRateScaler.NONE, LearningRateScaler, False))
         data.append(("clip_grad_norm", 1.0, float, True))
@@ -794,6 +809,7 @@ class TrainConfig(BaseConfig):
         text_encoder.weight_dtype = DataType.NONE
         data.append(("text_encoder", text_encoder, TrainModelPartConfig, False))
         data.append(("text_encoder_layer_skip", 0, int, False))
+        data.append(("text_encoder_max_token_length", 225, int, False))
 
         # text encoder 2
         text_encoder_2 = TrainModelPartConfig.default_values()
@@ -804,6 +820,7 @@ class TrainConfig(BaseConfig):
         text_encoder_2.weight_dtype = DataType.NONE
         data.append(("text_encoder_2", text_encoder_2, TrainModelPartConfig, False))
         data.append(("text_encoder_2_layer_skip", 0, int, False))
+        data.append(("text_encoder_2_max_token_length", 225, int, False))
 
         # text encoder 3
         text_encoder_3 = TrainModelPartConfig.default_values()
@@ -814,6 +831,7 @@ class TrainConfig(BaseConfig):
         text_encoder_3.weight_dtype = DataType.NONE
         data.append(("text_encoder_3", text_encoder_3, TrainModelPartConfig, False))
         data.append(("text_encoder_3_layer_skip", 0, int, False))
+        data.append(("text_encoder_3_max_token_length", 256, int, False))
 
         # vae
         vae = TrainModelPartConfig.default_values()

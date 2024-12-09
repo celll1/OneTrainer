@@ -209,8 +209,8 @@ class FluxModel(BaseModel):
             tokenizer_output = self.tokenizer_2(
                 text,
                 padding='max_length',
-                truncation=True,
-                max_length=77,
+                truncation=False,
+                # max_length=77,
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)

@@ -68,6 +68,27 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         loss = diff + torch.nn.functional.softplus(-2.0*diff) - torch.log(torch.full(size=diff.size(), fill_value=2.0, dtype=torch.float32, device=diff.device))
         return loss
 
+    def __rational_quadratic_loss(
+            self,
+            pred: torch.Tensor,
+            target: torch.Tensor,
+            k: float,
+    ):
+        diff = pred - target
+        squared_diff = diff * diff
+        loss = squared_diff / (1.0/k + squared_diff)
+        return loss
+
+    def __smoothing_sigmoid_loss(
+            self,
+            pred: torch.Tensor,
+            target: torch.Tensor,
+            k: float,
+    ):
+        diff = pred - target
+        loss = diff + ( torch.nn.functional.softplus(-2.0*k*diff) - torch.log(torch.full(size=diff.size(), fill_value=2.0, dtype=torch.float32, device=diff.device)) ) / k
+        return loss
+
     def __masked_losses(
             self,
             batch: dict,
@@ -75,6 +96,10 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             config: TrainConfig,
     ):
         losses = 0
+
+        # guard for infinite or NaN values in predicted
+        if torch.isinf(data['predicted']).any() or torch.isnan(data['predicted']).any():
+            print(f"Warning: Infinite or NaN values detected in predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
 
         # MSE/L2 Loss
         if config.mse_strength != 0:
@@ -130,6 +155,39 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 normalize_masked_area_loss=config.normalize_masked_area_loss,
             ).mean([1, 2, 3]) * config.vb_loss_strength
 
+        # Rational Quadratic Loss
+        if config.rational_quadratic_strength != 0:
+            losses += masked_losses(
+                losses=self.__rational_quadratic_loss(
+                    data['predicted'].to(dtype=torch.float32),
+                    data['target'].to(dtype=torch.float32),
+                    config.rational_quadratic_k,
+                ),
+                mask=batch['latent_mask'].to(dtype=torch.float32),
+                unmasked_weight=config.unmasked_weight,
+                normalize_masked_area_loss=config.normalize_masked_area_loss,
+            ).mean([1, 2, 3]) * config.rational_quadratic_strength
+
+        # Smoothing Sigmoid Loss
+        if config.smoothing_sigmoid_strength != 0:
+            losses += masked_losses(
+                losses=self.__smoothing_sigmoid_loss(
+                    data['predicted'].to(dtype=torch.float32),
+                    data['target'].to(dtype=torch.float32),
+                    config.smoothing_sigmoid_k,
+                ),
+                mask=batch['latent_mask'].to(dtype=torch.float32),
+                unmasked_weight=config.unmasked_weight,
+                normalize_masked_area_loss=config.normalize_masked_area_loss,
+            ).mean([1, 2, 3]) * config.smoothing_sigmoid_strength
+
+        # guard for infinite or NaN values in losses
+        if losses.isnan().any() or losses.isinf().any():
+            print(f"Warning: NaN or Infinite values detected in losses - inf: {losses.isinf().sum()}, nan: {losses.isnan().sum()}")
+            print(f"predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
+            print(f"predicted max: {data['predicted'].max()}, min: {data['predicted'].min()}")
+            raise ValueError("NaN or Infinite values detected in losses")
+
         return losses
 
     def __unmasked_losses(
@@ -139,6 +197,10 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             config: TrainConfig,
     ):
         losses = 0
+
+        # guard for infinite or NaN values in predicted
+        if torch.isinf(data['predicted']).any() or torch.isnan(data['predicted']).any():
+            print(f"Warning: Infinite or NaN values detected in predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
 
         # MSE/L2 Loss
         if config.mse_strength != 0:
@@ -174,10 +236,33 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 predicted_var_values=data['predicted_var_values'].to(dtype=torch.float32),
             ).mean([1, 2, 3]) * config.vb_loss_strength
 
+        # Rational Quadratic Loss
+        if config.rational_quadratic_strength != 0:
+            losses += self.__rational_quadratic_loss(
+                data['predicted'].to(dtype=torch.float32),
+                data['target'].to(dtype=torch.float32),
+                config.rational_quadratic_k,
+            ).mean([1, 2, 3]) * config.rational_quadratic_strength
+
+        # Smoothing Sigmoid Loss
+        if config.smoothing_sigmoid_strength != 0:
+            losses += self.__smoothing_sigmoid_loss(
+                data['predicted'].to(dtype=torch.float32),
+                data['target'].to(dtype=torch.float32),
+                config.smoothing_sigmoid_k,
+            ).mean([1, 2, 3]) * config.smoothing_sigmoid_strength
+
         if config.masked_training and config.normalize_masked_area_loss:
             clamped_mask = torch.clamp(batch['latent_mask'], config.unmasked_weight, 1)
             mask_mean = clamped_mask.mean(dim=(1, 2, 3))
             losses /= mask_mean
+
+        # guard for infinite or NaN values in losse
+        if losses.isnan().any() or losses.isinf().any():
+            print(f"Warning: NaN or Infinite values detected in losses - inf: {losses.isinf().sum()}, nan: {losses.isnan().sum()}")
+            print(f"predicted - inf: {torch.isinf(data['predicted']).sum()}, nan: {torch.isnan(data['predicted']).sum()}")
+            print(f"predicted max: {data['predicted'].max()}, min: {data['predicted'].min()}")
+            raise ValueError("NaN or Infinite values detected in losses")
 
         return losses
 
@@ -236,6 +321,36 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         if v_prediction:
             snr += 1.0
         return (1.0 + snr) ** -gamma
+
+    def __sigma_weight(
+            self,
+            sigmas: Tensor,
+            config: TrainConfig,
+            timesteps: Tensor,
+    ) -> Tensor:
+        return sigmas[timesteps]
+
+    def __logit_normal_weight(
+            self,
+            sigmas: Tensor,
+            config: TrainConfig,
+            timesteps: Tensor,
+    ) -> Tensor:
+        x = sigmas[timesteps]
+
+        x = torch.clamp(x, min=1e-5, max=1-1e-5)
+
+        logit_x = torch.log(x / (1 - x))
+
+        mean = config.logit_normal_mean
+        std = config.logit_normal_std
+
+        # 1/std√2pi・1/x(1-x)・e^(-(logit(x)-mean)^2/2s^2)
+        norm_const = 1.0 / (std * torch.sqrt(torch.tensor(2.0 * torch.pi)))
+        jacobian = 1.0 / (x * (1.0 - x))
+        exp_term = torch.exp(-0.5 * ((logit_x - mean) / std) ** 2)
+
+        return norm_const * jacobian * exp_term
 
     def __sigma_loss_weight(
         self,
@@ -324,6 +439,14 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
                 losses = self.__masked_losses(batch, data, config)
             else:
                 losses = self.__unmasked_losses(batch, data, config)
+
+        # apply loss weighting
+        if sigmas is not None and 'timestep' in data:
+            match config.loss_weight_fn:
+                case LossWeight.SIGMA:
+                    losses *= self.__sigma_weight(sigmas, config, data['timestep'])
+                case LossWeight.LOGIT_NORMAL:
+                    losses *= self.__logit_normal_weight(sigmas, config, data['timestep'])
 
         # Scale Losses by Batch and/or GA (if enabled)
         losses = losses * batch_size_scale * gradient_accumulation_steps_scale

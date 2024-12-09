@@ -520,6 +520,7 @@ class BaseStableDiffusion3Setup(
             ).sample
 
             flow = latent_noise - scaled_latent_image
+
             model_output_data = {
                 'loss_type': 'target',
                 'timestep': timestep,

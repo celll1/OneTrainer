@@ -88,6 +88,24 @@ class StableDiffusion3Sampler(BaseModelSampler):
                 apply_attention_mask=prior_attention_mask,
             )
 
+            max_length = max(prompt_embedding.shape[1], negative_prompt_embedding.shape[1])
+
+            if prompt_embedding.shape[1] < max_length:
+                padding = torch.zeros(
+                    (prompt_embedding.shape[0], max_length - prompt_embedding.shape[1], prompt_embedding.shape[2]),
+                    device=prompt_embedding.device,
+                    dtype=prompt_embedding.dtype
+                )
+                prompt_embedding = torch.cat([prompt_embedding, padding], dim=1)
+
+            if negative_prompt_embedding.shape[1] < max_length:
+                padding = torch.zeros(
+                    (negative_prompt_embedding.shape[0], max_length - negative_prompt_embedding.shape[1], negative_prompt_embedding.shape[2]),
+                    device=negative_prompt_embedding.device,
+                    dtype=negative_prompt_embedding.dtype
+                )
+                negative_prompt_embedding = torch.cat([negative_prompt_embedding, padding], dim=1)
+
             combined_prompt_embedding = torch.cat([negative_prompt_embedding, prompt_embedding], dim=0)
             combined_pooled_prompt_embedding = torch.cat(
                 [negative_pooled_prompt_embedding, pooled_prompt_embedding], dim=0)

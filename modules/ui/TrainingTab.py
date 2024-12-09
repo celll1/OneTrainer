@@ -364,6 +364,11 @@ class TrainingTab:
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, 4, 1, self.ui_state, "text_encoder_layer_skip")
 
+        # text encoder max token length
+        components.label(frame, 5, 0, "Text Encoder Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder model")
+        components.entry(frame, 5, 1, self.ui_state, "text_encoder_max_token_length")
+
     def __create_text_encoder_1_frame(self, master, row, supports_include: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
         frame.grid(row=row, column=0, padx=5, pady=5, sticky="nsew")
@@ -412,6 +417,12 @@ class TrainingTab:
         components.label(frame, row, 0, "Text Encoder 1 Clip Skip",
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, row, 1, self.ui_state, "text_encoder_layer_skip")
+        row += 1
+
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 1 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 1 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_max_token_length")
         row += 1
 
     def __create_text_encoder_2_frame(self, master, row, supports_include: bool = False):
@@ -464,6 +475,12 @@ class TrainingTab:
         components.entry(frame, row, 1, self.ui_state, "text_encoder_2_layer_skip")
         row += 1
 
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 2 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 2 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_2_max_token_length")
+        row += 1
+
     def __create_text_encoder_3_frame(self, master, row, supports_include: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
         frame.grid(row=row, column=0, padx=5, pady=5, sticky="nsew")
@@ -512,6 +529,12 @@ class TrainingTab:
         components.label(frame, row, 0, "Text Encoder 3 Clip Skip",
                          tooltip="The number of additional clip layers to skip. 0 = the model default")
         components.entry(frame, row, 1, self.ui_state, "text_encoder_3_layer_skip")
+        row += 1
+
+        # text encoder max token length
+        components.label(frame, row, 0, "Text Encoder 3 Max Token Length",
+                         tooltip="The maximum number of tokens to use for the text encoder 3 model")
+        components.entry(frame, row, 1, self.ui_state, "text_encoder_3_max_token_length")
         row += 1
 
     def __create_embedding_frame(self, master, row):
@@ -695,26 +718,56 @@ class TrainingTab:
                          tooltip="Log - Hyperbolic cosine Error strength for custom loss settings.")
         components.entry(frame, 2, 1, self.ui_state, "log_cosh_strength")
 
+        # Rational Quadratic Strength
+        components.label(frame, 3, 0, "Rational Quadratic Strength",
+                         tooltip="Rational Quadratic Loss strength for custom loss settings.")
+        components.entry(frame, 3, 1, self.ui_state, "rational_quadratic_strength")
+
+        # Rational Quadratic k
+        components.label(frame, 4, 0, "Rational Quadratic k",
+                         tooltip="Rational Quadratic Loss k parameter for custom loss settings.")
+        components.entry(frame, 4, 1, self.ui_state, "rational_quadratic_k")
+
+        # Smoothing Sigmoid loss
+        components.label(frame, 5, 0, "Smoothing Sigmoid Loss",
+                         tooltip="Smoothing Sigmoid Loss strength for custom loss settings.")
+        components.entry(frame, 5, 1, self.ui_state, "smoothing_sigmoid_strength")
+
+        # Smoothing Sigmoid k
+        components.label(frame, 6, 0, "Smoothing Sigmoid k",
+                         tooltip="Smoothing Sigmoid Loss k parameter for custom loss settings.")
+        components.entry(frame, 6, 1, self.ui_state, "smoothing_sigmoid_k")
+
         if supports_vb_loss:
             # VB Strength
-            components.label(frame, 3, 0, "VB Strength",
+            components.label(frame, 7, 0, "VB Strength",
                              tooltip="Variational lower-bound strength for custom loss settings. Should be set to 1 for variational diffusion models")
-            components.entry(frame, 3, 1, self.ui_state, "vb_loss_strength")
+            components.entry(frame, 7, 1, self.ui_state, "vb_loss_strength")
 
         # Loss Weight function
-        components.label(frame, 4, 0, "Loss Weight Function",
+        components.label(frame, 8, 0, "Loss Weight Function",
                          tooltip="Choice of loss weight function. Can help the model learn details more accurately.")
-        components.options(frame, 4, 1, [str(x) for x in list(LossWeight)], self.ui_state, "loss_weight_fn")
+        components.options(frame, 8, 1, [str(x) for x in list(LossWeight)], self.ui_state, "loss_weight_fn")
 
         # Loss weight strength
-        components.label(frame, 5, 0, "Gamma",
+        components.label(frame, 9, 0, "Gamma",
                          tooltip="Inverse strength of loss weighting. Range: 1-20, only applies to Min SNR and P2.")
-        components.entry(frame, 5, 1, self.ui_state, "loss_weight_strength")
+        components.entry(frame, 9, 1, self.ui_state, "loss_weight_strength")
+
+        # Logit Normal Mean
+        components.label(frame, 10, 0, "Logit Normal Mean",
+                         tooltip="Mean of the logit normal distribution used for loss weighting")
+        components.entry(frame, 10, 1, self.ui_state, "logit_normal_mean")
+
+        # Logit Normal Std
+        components.label(frame, 11, 0, "Logit Normal Std",
+                         tooltip="Std of the logit normal distribution used for loss weighting")
+        components.entry(frame, 11, 1, self.ui_state, "logit_normal_std")
 
         # Loss Scaler
-        components.label(frame, 6, 0, "Loss Scaler",
+        components.label(frame, 12, 0, "Loss Scaler",
                          tooltip="Selects the type of loss scaling to use during training. Functionally equated as: Loss * selection")
-        components.options(frame, 6, 1, [str(x) for x in list(LossScaler)], self.ui_state, "loss_scaler")
+        components.options(frame, 12, 1, [str(x) for x in list(LossScaler)], self.ui_state, "loss_scaler")
 
     def __open_optimizer_params_window(self):
         window = OptimizerParamsWindow(self.master, self.train_config, self.ui_state)
