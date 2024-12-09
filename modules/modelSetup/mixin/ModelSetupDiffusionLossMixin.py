@@ -322,21 +322,28 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             snr += 1.0
         return (1.0 + snr) ** -gamma
 
-    def __sigma_weight(
-            self,
-            sigmas: Tensor,
-            config: TrainConfig,
-            timesteps: Tensor,
+    def __sigma_loss_weight(
+        self,
+        timesteps: Tensor,
+        device: torch.device,
     ) -> Tensor:
-        return sigmas[timesteps]
+        return self.__sigmas[timesteps].to(device=device)
+
+    def __squared_sigmas_loss_weight(
+        self,
+        timesteps: Tensor,
+        device: torch.device,
+    ) -> Tensor:
+        weight = self.__sigmas[timesteps] ** 2
+        return weight.to(device=device)
 
     def __logit_normal_weight(
             self,
-            sigmas: Tensor,
             config: TrainConfig,
             timesteps: Tensor,
+            device: torch.device,
     ) -> Tensor:
-        x = sigmas[timesteps]
+        x = self.__sigmas[timesteps]
 
         x = torch.clamp(x, min=1e-5, max=1-1e-5)
 
@@ -350,14 +357,9 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
         jacobian = 1.0 / (x * (1.0 - x))
         exp_term = torch.exp(-0.5 * ((logit_x - mean) / std) ** 2)
 
-        return norm_const * jacobian * exp_term
+        weight = norm_const * jacobian * exp_term
 
-    def __sigma_loss_weight(
-        self,
-        timesteps: Tensor,
-        device: torch.device,
-    ) -> Tensor:
-        return self.__sigmas[timesteps].to(device=device)
+        return weight.to(device=device)
 
     def _diffusion_losses(
             self,
@@ -440,14 +442,6 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             else:
                 losses = self.__unmasked_losses(batch, data, config)
 
-        # apply loss weighting
-        if sigmas is not None and 'timestep' in data:
-            match config.loss_weight_fn:
-                case LossWeight.SIGMA:
-                    losses *= self.__sigma_weight(sigmas, config, data['timestep'])
-                case LossWeight.LOGIT_NORMAL:
-                    losses *= self.__logit_normal_weight(sigmas, config, data['timestep'])
-
         # Scale Losses by Batch and/or GA (if enabled)
         losses = losses * batch_size_scale * gradient_accumulation_steps_scale
 
@@ -458,5 +452,9 @@ class ModelSetupDiffusionLossMixin(metaclass=ABCMeta):
             match config.loss_weight_fn:
                 case LossWeight.SIGMA:
                     losses *= self.__sigma_loss_weight(data['timestep'], losses.device)
+                case LossWeight.SQUARED_SIGMAS:
+                    losses *= self.__squared_sigmas_loss_weight(data['timestep'], losses.device)
+                case LossWeight.LOGIT_NORMAL:
+                    losses *= self.__logit_normal_weight(config, data['timestep'], losses.device)
 
         return losses

@@ -7,6 +7,7 @@ class LossWeight(Enum):
     MIN_SNR_GAMMA = 'MIN_SNR_GAMMA'
     DEBIASED_ESTIMATION = 'DEBIASED_ESTIMATION'
     SIGMA = 'SIGMA'
+    SQUARED_SIGMAS = 'SQUARED_SIGMAS'
     LOGIT_NORMAL = 'LOGIT_NORMAL'
 
     def __str__(self):
