@@ -407,6 +407,12 @@ class TrainConfig(BaseConfig):
     save_skip_first: int
     save_filename_prefix: str
 
+    # Hugging Face関連の設定
+    upload_to_huggingface: bool
+    huggingface_repo_id: str
+    huggingface_token: str
+    huggingface_private: bool
+
     def __init__(self, data: list[(str, Any, type, bool)]):
         super().__init__(
             data,
@@ -909,5 +915,11 @@ class TrainConfig(BaseConfig):
         data.append(("save_every_unit", TimeUnit.NEVER, TimeUnit, False))
         data.append(("save_skip_first", 0, int, False))
         data.append(("save_filename_prefix", "", str, False))
+
+        # Hugging Face関連の設定
+        data.append(("upload_to_huggingface", False, bool, False))
+        data.append(("huggingface_repo_id", "", str, False))
+        data.append(("huggingface_token", "", str, False))
+        data.append(("huggingface_private", True, bool, False))
 
         return TrainConfig(data)
