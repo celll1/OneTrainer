@@ -122,8 +122,14 @@ class StableDiffusion3ModelSaver(
 
         # Hugging Faceへのアップロード
         if model.train_config.upload_to_huggingface and model.train_config.huggingface_repo_id:
+            # safetensorsの場合は、ファイルが保存されているディレクトリを使用
+            if output_model_format == ModelFormat.SAFETENSORS:
+                upload_path = str(Path(output_model_destination).parent)
+            else:
+                upload_path = output_model_destination
+
             self._upload_to_huggingface(
-                model_path=output_model_destination,
+                model_path=upload_path,
                 repo_id=model.train_config.huggingface_repo_id,
                 token=model.train_config.huggingface_token,
                 private=model.train_config.huggingface_private
