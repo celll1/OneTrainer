@@ -408,7 +408,7 @@ class ModelTab:
         # Hugging Face upload section
         components.label(self.scroll_frame, row, 0, "Upload to Hugging Face",
                          tooltip="Upload the model to Hugging Face Hub after training")
-        components.checkbox(self.scroll_frame, row, 1, self.ui_state, "upload_to_huggingface")
+        components.switch(self.scroll_frame, row, 1, self.ui_state, "upload_to_huggingface")
 
         row += 1
 
@@ -419,7 +419,7 @@ class ModelTab:
 
         # Private repository option
         components.label(self.scroll_frame, row, 3, "Private Repository")
-        components.checkbox(self.scroll_frame, row, 4, self.ui_state, "huggingface_private")
+        components.switch(self.scroll_frame, row, 4, self.ui_state, "huggingface_private")
 
         row += 1
 
