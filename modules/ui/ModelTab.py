@@ -426,7 +426,7 @@ class ModelTab:
         # Hugging Face token
         components.label(self.scroll_frame, row, 0, "HF Token",
                          tooltip="Hugging Face API token (from https://huggingface.co/settings/tokens)")
-        components.entry(self.scroll_frame, row, 1, self.ui_state, "huggingface_token", show="*")
+        components.entry(self.scroll_frame, row, 1, self.ui_state, "huggingface_token")
 
         row += 1
 
