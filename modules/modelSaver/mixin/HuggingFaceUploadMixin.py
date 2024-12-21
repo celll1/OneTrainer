@@ -1,5 +1,7 @@
-
 from huggingface_hub import HfApi, create_repo
+import os
+from pathlib import Path
+from tqdm import tqdm
 
 
 class HuggingFaceUploadMixin:
@@ -34,12 +36,28 @@ class HuggingFaceUploadMixin:
             )
 
             # Upload model files
-            api.upload_folder(
-                folder_path=model_path,
-                repo_id=repo_id,
-                token=token,
-                commit_message=commit_message
-            )
+            path = Path(model_path)
+            if path.is_file():
+                files = [path]
+                base_path = path.parent
+            else:
+                files = list(path.rglob("*"))
+                base_path = path
+
+            for file in tqdm(files, desc="Uploading files"):
+                if file.is_file():
+                    relative_path = str(file.relative_to(base_path))
+                    try:
+                        api.upload_file(
+                            path_or_fileobj=str(file),
+                            path_in_repo=relative_path,
+                            repo_id=repo_id,
+                            token=token,
+                            commit_message=f"Upload {relative_path}"
+                        )
+                    except Exception as e:
+                        print(f"Failed to upload {relative_path}: {str(e)}")
+                        continue
 
             return True
         except Exception as e:
