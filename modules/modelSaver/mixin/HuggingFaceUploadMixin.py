@@ -1,7 +1,7 @@
-from huggingface_hub import HfApi, create_repo
-import os
 from pathlib import Path
-from tqdm import tqdm
+
+from huggingface_hub import HfApi, create_repo
+from tqdm.auto import tqdm
 
 
 class HuggingFaceUploadMixin:
