@@ -1,6 +1,8 @@
 
-from huggingface_hub import HfApi, create_repo
 import os
+
+from huggingface_hub import HfApi, create_repo
+
 
 class HuggingFaceUploadMixin:
     def _upload_to_huggingface(
