@@ -1,6 +1,6 @@
 
 from huggingface_hub import HfApi, create_repo
-
+import os
 
 class HuggingFaceUploadMixin:
     def _upload_to_huggingface(
@@ -33,13 +33,20 @@ class HuggingFaceUploadMixin:
                 exist_ok=True
             )
 
-            # Upload model files
-            api.upload_folder(
-                folder_path=model_path,
-                repo_id=repo_id,
-                token=token,
-                commit_message=commit_message
-            )
+            if os.path.isdir(model_path):
+                api.upload_folder(
+                    folder_path=model_path,
+                    repo_id=repo_id,
+                    token=token,
+                    commit_message=commit_message
+                )
+            else:
+                api.upload_file(
+                    file_path=model_path,
+                    repo_id=repo_id,
+                    token=token,
+                    commit_message=commit_message
+                )
 
             return True
         except Exception as e:
