@@ -472,7 +472,7 @@ class BaseFluxSetup(
             packed_predicted_flow = model.transformer(
                 hidden_states=packed_latent_input.to(dtype=model.train_dtype.torch_dtype()),
                 timestep=timestep / 1000,
-                guidance=guidance.to(dtype=model.train_dtype.torch_dtype()),
+                guidance=guidance.to(dtype=model.train_dtype.torch_dtype()) if guidance is not None else None,
                 pooled_projections=pooled_text_encoder_output.to(dtype=model.train_dtype.torch_dtype()),
                 encoder_hidden_states=text_encoder_output.to(dtype=model.train_dtype.torch_dtype()),
                 txt_ids=text_ids.to(dtype=model.train_dtype.torch_dtype()),
