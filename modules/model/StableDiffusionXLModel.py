@@ -233,6 +233,21 @@ class StableDiffusionXLModel(BaseModel):
             pooled_text_encoder_2_output = pooled_text_encoder_2_output * dropout_text_encoder_2_mask[:, None]
             text_encoder_2_output = text_encoder_2_output * dropout_text_encoder_2_mask[:, None, None]
 
+        # TE1とTE2の出力長を合わせる
+        max_seq_len = max(text_encoder_1_output.shape[1], text_encoder_2_output.shape[1])
+
+        if text_encoder_1_output.shape[1] < max_seq_len:
+            text_encoder_1_output = torch.nn.functional.pad(
+                text_encoder_1_output,
+                (0, 0, 0, max_seq_len - text_encoder_1_output.shape[1])
+            )
+        if text_encoder_2_output.shape[1] < max_seq_len:
+            text_encoder_2_output = torch.nn.functional.pad(
+                text_encoder_2_output,
+                (0, 0, 0, max_seq_len - text_encoder_2_output.shape[1])
+            )
+
+        # 結合
         text_encoder_output = torch.concat([text_encoder_1_output, text_encoder_2_output], dim=-1)
 
         return text_encoder_output, pooled_text_encoder_2_output
