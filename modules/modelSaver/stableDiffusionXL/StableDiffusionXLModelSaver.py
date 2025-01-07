@@ -4,6 +4,7 @@ from pathlib import Path
 
 from modules.model.StableDiffusionXLModel import StableDiffusionXLModel
 from modules.modelSaver.mixin.DtypeModelSaverMixin import DtypeModelSaverMixin
+from modules.modelSaver.mixin.HuggingFaceUploadMixin import HuggingFaceUploadMixin
 from modules.util.convert.convert_sdxl_diffusers_to_ckpt import convert_sdxl_diffusers_to_ckpt
 from modules.util.enum.ModelFormat import ModelFormat
 
@@ -15,6 +16,7 @@ from safetensors.torch import save_file
 
 class StableDiffusionXLModelSaver(
     DtypeModelSaverMixin,
+    HuggingFaceUploadMixin,
 ):
 
     def __save_diffusers(
@@ -109,3 +111,12 @@ class StableDiffusionXLModelSaver(
                 self.__save_safetensors(model, output_model_destination, dtype)
             case ModelFormat.INTERNAL:
                 self.__save_internal(model, output_model_destination)
+
+        # Hugging Faceへのアップロード
+        if model.train_config.upload_to_huggingface and model.train_config.huggingface_repo_id:
+            self._upload_to_huggingface(
+                model_path=output_model_destination,
+                repo_id=model.train_config.huggingface_repo_id,
+                token=model.train_config.huggingface_token,
+                private=model.train_config.huggingface_private
+            )
