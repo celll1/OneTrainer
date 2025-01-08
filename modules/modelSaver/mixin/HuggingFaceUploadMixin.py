@@ -43,6 +43,7 @@ class HuggingFaceUploadMixin:
             else:
                 api.upload_file(
                     path_or_fileobj=model_path,
+                    path_in_repo=os.path.basename(model_path),
                     repo_id=repo_id,
                     token=token,
                     commit_message=commit_message
