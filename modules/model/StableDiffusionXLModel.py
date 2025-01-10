@@ -175,6 +175,7 @@ class StableDiffusionXLModel(BaseModel):
             text_encoder_1_dropout_probability: float | None = None,
             text_encoder_2_dropout_probability: float | None = None,
             pooled_text_encoder_2_output: Tensor = None,
+            use_gradient_checkpointing: bool = True,
     ):
         if tokens_1 is None and text is not None:
             tokenizer_output = self.tokenizer_1(
@@ -205,6 +206,7 @@ class StableDiffusionXLModel(BaseModel):
             add_pooled_output=False,
             use_attention_mask=False,
             add_layer_norm=False,
+            gradient_checkpointing=use_gradient_checkpointing,
         )
 
         text_encoder_2_output, pooled_text_encoder_2_output = encode_clip(
@@ -217,6 +219,7 @@ class StableDiffusionXLModel(BaseModel):
             pooled_text_encoder_output=pooled_text_encoder_2_output,
             use_attention_mask=False,
             add_layer_norm=False,
+            gradient_checkpointing=use_gradient_checkpointing,
         )
 
         # apply dropout
