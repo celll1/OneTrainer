@@ -43,7 +43,7 @@ from tqdm import tqdm
 # --- SageAttention Import Start ---
 try:
     import torch.nn.functional as F
-    from sageattention import sageattention
+    from sageattention import sageattn
     SAGE_ATTENTION_AVAILABLE = True
     print("SageAttention is available.")
 except ImportError:
@@ -134,9 +134,9 @@ class GenericTrainer(BaseTrainer):
         self.model.train_config = self.config
 
         # --- Apply SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and self.config.optimizations.sage_attention: # Assuming a config option exists or will be added
+        if SAGE_ATTENTION_AVAILABLE and getattr(self.config.optimizations, 'sage_attention', False):
              print("Applying SageAttention monkey patch.")
-             F.scaled_dot_product_attention = sageattention
+             F.scaled_dot_product_attention = sageattn
         # --- Apply SageAttention End ---
 
         self.callbacks.on_update_status("running model setup")
