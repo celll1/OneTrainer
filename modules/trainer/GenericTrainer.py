@@ -40,6 +40,17 @@ import huggingface_hub
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
 
+# --- SageAttention Import Start ---
+try:
+    import torch.nn.functional as F
+    from sageattention import sageattention
+    SAGE_ATTENTION_AVAILABLE = True
+    print("SageAttention is available.")
+except ImportError:
+    SAGE_ATTENTION_AVAILABLE = False
+    print("SageAttention not found, falling back to default attention mechanism.")
+# --- SageAttention Import End ---
+
 
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
@@ -121,6 +132,12 @@ class GenericTrainer(BaseTrainer):
             weight_dtypes=self.config.weight_dtypes(),
         )
         self.model.train_config = self.config
+
+        # --- Apply SageAttention Start ---
+        if SAGE_ATTENTION_AVAILABLE and self.config.optimizations.sage_attention: # Assuming a config option exists or will be added
+             print("Applying SageAttention monkey patch.")
+             F.scaled_dot_product_attention = sageattention
+        # --- Apply SageAttention End ---
 
         self.callbacks.on_update_status("running model setup")
 
