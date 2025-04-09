@@ -134,7 +134,7 @@ class GenericTrainer(BaseTrainer):
         self.model.train_config = self.config
 
         # --- Apply SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and getattr(self.config.optimizations, 'sage_attention', False):
+        if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
              print("Applying SageAttention monkey patch.")
              F.scaled_dot_product_attention = sageattn
         # --- Apply SageAttention End ---
