@@ -314,7 +314,7 @@ class TrainingTab:
         # --- SageAttention Start ---
         components.label(frame, row, 0, "SageAttention",
                          tooltip="Enable SageAttention optimization (experimental, requires installation). Replaces the standard attention mechanism.")
-        components.switch(frame, row, 1, self.ui_state, "optimizations.sage_attention")
+        components.switch(frame, row, 1, self.ui_state, "sage_attention")
         row += 1
         # --- SageAttention End ---
 
