@@ -311,6 +311,13 @@ class TrainingTab:
         components.switch(frame, row, 1, self.ui_state, "enable_autocast_cache")
         row += 1
 
+        # --- SageAttention Start ---
+        components.label(frame, row, 0, "SageAttention",
+                         tooltip="Enable SageAttention optimization (experimental, requires installation). Replaces the standard attention mechanism.")
+        components.switch(frame, row, 1, self.ui_state, "sage_attention")
+        row += 1
+        # --- SageAttention End ---
+
         # resolution
         components.label(frame, row, 0, "Resolution",
                          tooltip="The resolution used for training. Optionally specify multiple resolutions separated by a comma, or a single exact resolution in the format <width>x<height>")
@@ -654,8 +661,6 @@ class TrainingTab:
         components.label(frame, 8, 0, "Dynamic Timestep Shifting",
                          tooltip="Dynamically shift the timestep distribution based on resolution. Use the preview to see more details.")
         components.switch(frame, 8, 1, self.ui_state, "dynamic_timestep_shifting")
-
-
 
     def __create_masked_frame(self, master, row):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
