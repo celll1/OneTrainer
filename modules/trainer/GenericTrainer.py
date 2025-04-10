@@ -51,6 +51,24 @@ except ImportError:
     print("SageAttention not found, falling back to default attention mechanism.")
 # --- SageAttention Import End ---
 
+# --- Import BasicTransformerBlock --- #
+try:
+    # Try importing from the expected location within diffusers or sgm
+    # Adjust the exact path based on your project structure if necessary
+    # Assuming it might be within sgm based on previous logs
+    from sgm.modules.attention import BasicTransformerBlock
+    BLOCK_TO_WRAP = BasicTransformerBlock
+    print("Found BasicTransformerBlock from sgm.modules.attention")
+except ImportError:
+    try:
+        # Fallback attempt for diffusers structure
+        from diffusers.models.attention import BasicTransformerBlock
+        BLOCK_TO_WRAP = BasicTransformerBlock
+        print("Found BasicTransformerBlock from diffusers.models.attention")
+    except ImportError:
+        BLOCK_TO_WRAP = None
+        print("Warning: BasicTransformerBlock could not be imported. Cannot apply targeted SageAttention wrapping.")
+# ------
 
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
@@ -133,51 +151,67 @@ class GenericTrainer(BaseTrainer):
         )
         self.model.train_config = self.config
 
-        # --- Wrap UNet forward for SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
+        # --- Remove UNet forward wrap --- #
+        # REMOVED PREVIOUS WRAPPER for self.model.unet.forward
+        # ---
+
+        # --- Wrap BasicTransformerBlock._forward for SageAttention Start ---
+        if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False) and BLOCK_TO_WRAP is not None:
             if hasattr(self.model, 'unet') and self.model.unet is not None:
-                print("Attempting to wrap UNet forward method for SageAttention...")
-                # --- Ensure F is imported BEFORE the try block ---
+                print("Attempting to wrap BasicTransformerBlock._forward methods for SageAttention...")
+                wrapped_count = 0
+                # --- Ensure F is imported --- #
                 import torch.nn.functional as F
                 # ---
+                original_sdpa = F.scaled_dot_product_attention
+                print(f"Original SDPA: {original_sdpa}")
+
+                # Recursive function to wrap the blocks
+                def wrap_block_forward(module):
+                    nonlocal wrapped_count
+                    for child_name, child_module in module.named_children():
+                        if isinstance(child_module, BLOCK_TO_WRAP):
+                            try:
+                                original_block_forward = child_module._forward
+                                # print(f"Wrapping _forward for: {child_name} of type {type(child_module)}")
+
+                                # Define the wrapper function for _forward
+                                def wrapped_block_forward(*args, **kwargs):
+                                    # print(f"Executing wrapped _forward for {child_name}")
+                                    F.scaled_dot_product_attention = sageattn
+                                    try:
+                                        output = original_block_forward(*args, **kwargs)
+                                        return output
+                                    finally:
+                                        F.scaled_dot_product_attention = original_sdpa
+
+                                # Replace _forward method
+                                child_module._forward = wrapped_block_forward
+                                wrapped_count += 1
+                            except Exception as e:
+                                print(f"Failed to wrap _forward for {child_name}: {e}")
+                        else:
+                            # Recurse into submodules
+                            wrap_block_forward(child_module)
+
+                # Start the recursive wrapping process on the U-Net
                 try:
-                    # Store original methods
-                    original_unet_forward = self.model.unet.forward
-                    original_sdpa = F.scaled_dot_product_attention
-                    print(f"Original UNet forward: {original_unet_forward}")
-                    print(f"Original SDPA: {original_sdpa}")
-
-                    # Define the wrapper function
-                    def wrapped_unet_forward(*args, **kwargs):
-                        # Monkey patch SDPA before calling original forward
-                        # print("Applying SageAttention patch inside UNet forward wrapper.")
-                        F.scaled_dot_product_attention = sageattn
-                        try:
-                            # Call the original forward method
-                            output = original_unet_forward(*args, **kwargs)
-                            return output
-                        finally:
-                            # Always restore the original SDPA function
-                            # print("Restoring original scaled_dot_product_attention after UNet forward.")
-                            F.scaled_dot_product_attention = original_sdpa
-
-                    # Replace UNet's forward method with the wrapper
-                    self.model.unet.forward = wrapped_unet_forward
-                    print("UNet forward method wrapped successfully for SageAttention.")
-                    print("Reminder: For this wrapper to be effective, ensure 'spatial_transformer_attn_type' in your model's .yaml config is set to 'softmax'.")
-
+                    wrap_block_forward(self.model.unet)
+                    print(f"Successfully wrapped {wrapped_count} BasicTransformerBlock._forward methods.")
+                    if wrapped_count > 0:
+                         print("Reminder: For this wrapper to be effective, ensure 'spatial_transformer_attn_type' in your model's .yaml config is set to 'softmax'.")
+                    else:
+                         print("Warning: No BasicTransformerBlock instances found or wrapped in the UNet.")
                 except Exception as e:
-                    print(f"Failed to wrap UNet forward method for SageAttention: {e}")
-                    # Attempt to restore originals if wrapping failed (best effort)
-                    if 'original_unet_forward' in locals() and hasattr(self.model.unet, 'forward') and self.model.unet.forward != original_unet_forward:
-                        self.model.unet.forward = original_unet_forward
-                        print("Restored original UNet forward due to wrapping error.")
-                    if 'original_sdpa' in locals() and hasattr(F, 'scaled_dot_product_attention') and F.scaled_dot_product_attention != original_sdpa:
-                        F.scaled_dot_product_attention = original_sdpa
-                        print("Restored original SDPA due to wrapping error.")
+                     print(f"Error during recursive wrapping process: {e}")
+                     # Attempt to restore SDPA just in case it was modified mid-error
+                     F.scaled_dot_product_attention = original_sdpa
+
             else:
                 print("Could not find UNet model (self.model.unet) to apply SageAttention wrapper.")
-        # --- Wrap UNet forward for SageAttention End ---
+        elif BLOCK_TO_WRAP is None and getattr(self.config, 'sage_attention', False):
+             print("SageAttention wrapping skipped because BasicTransformerBlock could not be imported.")
+        # --- Wrap BasicTransformerBlock._forward for SageAttention End ---
 
         self.callbacks.on_update_status("running model setup")
 
