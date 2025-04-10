@@ -133,11 +133,48 @@ class GenericTrainer(BaseTrainer):
         )
         self.model.train_config = self.config
 
-        # --- Apply SageAttention Start ---
+        # --- Wrap UNet forward for SageAttention Start ---
         if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
-             print("Applying SageAttention monkey patch.")
-             F.scaled_dot_product_attention = sageattn
-        # --- Apply SageAttention End ---
+            if hasattr(self.model, 'unet') and self.model.unet is not None:
+                print("Attempting to wrap UNet forward method for SageAttention...")
+                try:
+                    # Ensure F is available
+                    if 'F' not in globals():
+                        import torch.nn.functional as F
+
+                    # Store original methods
+                    original_unet_forward = self.model.unet.forward
+                    original_sdpa = F.scaled_dot_product_attention
+                    print(f"Original UNet forward: {original_unet_forward}")
+                    print(f"Original SDPA: {original_sdpa}")
+
+                    # Define the wrapper function
+                    def wrapped_unet_forward(*args, **kwargs):
+                        # Monkey patch SDPA before calling original forward
+                        # print("Applying SageAttention patch inside UNet forward wrapper.")
+                        F.scaled_dot_product_attention = sageattn
+                        try:
+                            # Call the original forward method
+                            output = original_unet_forward(*args, **kwargs)
+                            return output
+                        finally:
+                            # Always restore the original SDPA function
+                            # print("Restoring original scaled_dot_product_attention after UNet forward.")
+                            F.scaled_dot_product_attention = original_sdpa
+
+                    # Replace UNet's forward method with the wrapper
+                    self.model.unet.forward = wrapped_unet_forward
+                    print("UNet forward method wrapped successfully for SageAttention.")
+                    print("Reminder: For this wrapper to be effective, ensure 'spatial_transformer_attn_type' in your model's .yaml config is set to 'softmax'.")
+
+                except Exception as e:
+                    print(f"Failed to wrap UNet forward method for SageAttention: {e}")
+                    # Attempt to restore originals if wrapping failed (best effort)
+                    # ... (Error handling omitted for brevity) ...
+
+            else:
+                print("Could not find UNet model (self.model.unet) to apply SageAttention wrapper.")
+        # --- Wrap UNet forward for SageAttention End ---
 
         self.callbacks.on_update_status("running model setup")
 
