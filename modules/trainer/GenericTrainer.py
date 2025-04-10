@@ -137,11 +137,10 @@ class GenericTrainer(BaseTrainer):
         if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
             if hasattr(self.model, 'unet') and self.model.unet is not None:
                 print("Attempting to wrap UNet forward method for SageAttention...")
+                # --- Ensure F is imported BEFORE the try block ---
+                import torch.nn.functional as F
+                # ---
                 try:
-                    # Ensure F is available
-                    if 'F' not in globals():
-                        import torch.nn.functional as F
-
                     # Store original methods
                     original_unet_forward = self.model.unet.forward
                     original_sdpa = F.scaled_dot_product_attention
@@ -170,8 +169,12 @@ class GenericTrainer(BaseTrainer):
                 except Exception as e:
                     print(f"Failed to wrap UNet forward method for SageAttention: {e}")
                     # Attempt to restore originals if wrapping failed (best effort)
-                    # ... (Error handling omitted for brevity) ...
-
+                    if 'original_unet_forward' in locals() and hasattr(self.model.unet, 'forward') and self.model.unet.forward != original_unet_forward:
+                        self.model.unet.forward = original_unet_forward
+                        print("Restored original UNet forward due to wrapping error.")
+                    if 'original_sdpa' in locals() and hasattr(F, 'scaled_dot_product_attention') and F.scaled_dot_product_attention != original_sdpa:
+                        F.scaled_dot_product_attention = original_sdpa
+                        print("Restored original SDPA due to wrapping error.")
             else:
                 print("Could not find UNet model (self.model.unet) to apply SageAttention wrapper.")
         # --- Wrap UNet forward for SageAttention End ---
