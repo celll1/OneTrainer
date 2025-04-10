@@ -158,7 +158,7 @@ class GenericTrainer(BaseTrainer):
         # --- Wrap BasicTransformerBlock._forward for SageAttention Start ---
         if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False) and BLOCK_TO_WRAP is not None:
             if hasattr(self.model, 'unet') and self.model.unet is not None:
-                print("Attempting to wrap BasicTransformerBlock._forward methods for SageAttention...")
+                print("Attempting to wrap BasicTransformerBlock.forward methods for SageAttention...")
                 wrapped_count = 0
                 # --- Ensure F is imported --- #
                 import torch.nn.functional as F
@@ -172,12 +172,13 @@ class GenericTrainer(BaseTrainer):
                     for child_name, child_module in module.named_children():
                         if isinstance(child_module, BLOCK_TO_WRAP):
                             try:
-                                original_block_forward = child_module._forward
-                                # print(f"Wrapping _forward for: {child_name} of type {type(child_module)}")
+                                # --- Target the main 'forward' method --- #
+                                original_block_forward = child_module.forward
+                                # print(f"Wrapping forward for: {child_name} of type {type(child_module)}")
 
-                                # Define the wrapper function for _forward
+                                # Define the wrapper function for forward
                                 def wrapped_block_forward(*args, **kwargs):
-                                    # print(f"Executing wrapped _forward for {child_name}")
+                                    # print(f"Executing wrapped forward for {child_name}")
                                     F.scaled_dot_product_attention = sageattn
                                     try:
                                         output = original_block_forward(*args, **kwargs)
@@ -185,11 +186,12 @@ class GenericTrainer(BaseTrainer):
                                     finally:
                                         F.scaled_dot_product_attention = original_sdpa
 
-                                # Replace _forward method
-                                child_module._forward = wrapped_block_forward
+                                # Replace forward method
+                                child_module.forward = wrapped_block_forward
+                                # ---
                                 wrapped_count += 1
                             except Exception as e:
-                                print(f"Failed to wrap _forward for {child_name}: {e}")
+                                print(f"Failed to wrap forward for {child_name}: {e}")
                         else:
                             # Recurse into submodules
                             wrap_block_forward(child_module)
@@ -197,7 +199,7 @@ class GenericTrainer(BaseTrainer):
                 # Start the recursive wrapping process on the U-Net
                 try:
                     wrap_block_forward(self.model.unet)
-                    print(f"Successfully wrapped {wrapped_count} BasicTransformerBlock._forward methods.")
+                    print(f"Successfully wrapped {wrapped_count} BasicTransformerBlock.forward methods.")
                     if wrapped_count > 0:
                          print("Reminder: For this wrapper to be effective, ensure 'spatial_transformer_attn_type' in your model's .yaml config is set to 'softmax'.")
                     else:
