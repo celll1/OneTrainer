@@ -96,24 +96,24 @@ if SAGE_ATTENTION_AVAILABLE:
             key = attn.to_k(encoder_hidden_states, **kwargs)
             value = attn.to_v(encoder_hidden_states, **kwargs)
 
-            # Reshape q, k, v for sageattn (assuming HND layout: batch*heads, num_tokens, dim_head)
-            # This might need adjustment based on attn implementation details (heads, dim_head)
+            # --- Reshape q, k, v to 4D for sageattn (HND layout: B, H, N, D) --- #
             inner_dim = key.shape[-1]
             head_dim = inner_dim // attn.heads
 
-            query = rearrange(query, 'b n (h d) -> (b h) n d', h=attn.heads)
-            key = rearrange(key, 'b n (h d) -> (b h) n d', h=attn.heads)
-            value = rearrange(value, 'b n (h d) -> (b h) n d', h=attn.heads)
+            query = rearrange(query, 'b n (h d) -> b h n d', h=attn.heads)
+            key = rearrange(key, 'b n (h d) -> b h n d', h=attn.heads)
+            value = rearrange(value, 'b n (h d) -> b h n d', h=attn.heads)
+            # ---
 
             # Call sageattn
             # We might need to handle attention_mask appropriately if sageattn supports it
             # or apply it manually if not.
-            # Assuming sageattn returns in the same shape it received
-            # print("Calling sageattn...")
+            # Assuming sageattn returns in the same shape it received (B, H, N, D for HND)
             hidden_states = sageattn(query, key, value, tensor_layout="HND") # Assuming HND is appropriate
 
-            # Reshape back to original shape
-            hidden_states = rearrange(hidden_states, '(b h) n d -> b n (h d)', h=attn.heads)
+            # --- Reshape back to original shape (B, N, C) --- #
+            hidden_states = rearrange(hidden_states, 'b h n d -> b n (h d)', h=attn.heads)
+            # ---
 
             # Project out
             hidden_states = attn.to_out[0](hidden_states, **kwargs)
