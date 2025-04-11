@@ -69,15 +69,11 @@ except ImportError:
 # ---
 
 # --- Custom SageAttention Processor --- #
-if SAGE_ATTENTION_AVAILABLE and PROCESSOR_BASE_CLASS is not None:
-    class SageAttentionProcessor(PROCESSOR_BASE_CLASS):
+if SAGE_ATTENTION_AVAILABLE:
+    # Define the processor as a standalone class
+    class SageAttentionProcessor:
         def __init__(self):
-            super().__init__()
-            if not hasattr(F, 'scaled_dot_product_attention'):
-                 print("Warning: Original F.scaled_dot_product_attention not found during SageAttentionProcessor init.")
-                 self.original_sdpa = None
-            else:
-                 self.original_sdpa = F.scaled_dot_product_attention
+            pass # シンプルな init
 
         def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, **kwargs):
             # Note: The exact kwargs and how to derive q, k, v might differ slightly
@@ -134,10 +130,9 @@ if SAGE_ATTENTION_AVAILABLE and PROCESSOR_BASE_CLASS is not None:
 
             return hidden_states
 else:
-     # Define a dummy processor if sageattn is not available, so the set_attn_processor call doesn't fail
-     class SageAttentionProcessor(PROCESSOR_BASE_CLASS):
+     # Define a dummy processor if sageattn is not available
+     class SageAttentionProcessor:
           def __call__(self, attn, hidden_states, **kwargs):
-               # Fallback or error, depending on desired behavior
                raise RuntimeError("SageAttention is not available, cannot use SageAttentionProcessor.")
 # -------
 
@@ -229,18 +224,16 @@ class GenericTrainer(BaseTrainer):
         # --- Set Attention Processor for SageAttention Start ---
         if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
             if hasattr(self.model, 'unet') and self.model.unet is not None:
-                 if PROCESSOR_BASE_CLASS is not None:
-                     print("Setting SageAttentionProcessor for UNet...")
-                     try:
-                         # Instantiate the custom processor
-                         sage_processor = SageAttentionProcessor()
-                         # Set the processor
-                         self.model.unet.set_attn_processor(sage_processor)
-                         print("Successfully set SageAttentionProcessor for UNet.")
-                     except Exception as e:
-                         print(f"Failed to set SageAttentionProcessor: {e}")
-                 else:
-                     print("Warning: Cannot set AttentionProcessor because base class import failed.")
+                 # PROCESSOR_BASE_CLASS のチェックを削除
+                 print("Setting SageAttentionProcessor for UNet...")
+                 try:
+                     # Instantiate the custom processor
+                     sage_processor = SageAttentionProcessor()
+                     # Set the processor
+                     self.model.unet.set_attn_processor(sage_processor)
+                     print("Successfully set SageAttentionProcessor for UNet.")
+                 except Exception as e:
+                     print(f"Failed to set SageAttentionProcessor: {e}")
             else:
                  print("Could not find UNet model (self.model.unet) to apply SageAttention processor.")
         # --- Set Attention Processor for SageAttention End ---
