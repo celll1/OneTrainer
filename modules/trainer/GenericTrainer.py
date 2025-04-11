@@ -40,35 +40,106 @@ import huggingface_hub
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
 
-# --- SageAttention Import Start ---
+# --- Import AttentionProcessor base class and einops --- #
+from einops import rearrange
+from torch.nn import Module
 try:
-    import torch.nn.functional as F
+    from diffusers.models.attention_processor import Attention
+    PROCESSOR_BASE_CLASS = Attention
+    print("Imported Attention processor base class from diffusers.")
+except ImportError:
+    # Fallback if the structure is different or Attention is not directly available
+    # This might need adjustment based on the actual diffusers version/structure
+    # For now, we'll assume a simple callable processor might work or define a dummy base
+    class AttentionProcessorBase(Module):
+         def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, **kwargs):
+            raise NotImplementedError
+    PROCESSOR_BASE_CLASS = AttentionProcessorBase
+    print("Warning: Could not import standard Attention processor base. Using a fallback.")
+
+# --- SageAttention Import --- #
+try:
+    import torch.nn.functional as F # Still needed for potential fallback/comparison? Keep for now.
     from sageattention import sageattn
     SAGE_ATTENTION_AVAILABLE = True
     print("SageAttention is available.")
 except ImportError:
     SAGE_ATTENTION_AVAILABLE = False
     print("SageAttention not found, falling back to default attention mechanism.")
-# --- SageAttention Import End ---
+# ---
 
-# --- Import BasicTransformerBlock --- #
-try:
-    # Try importing from the expected location within diffusers or sgm
-    # Adjust the exact path based on your project structure if necessary
-    # Assuming it might be within sgm based on previous logs
-    from sgm.modules.attention import BasicTransformerBlock
-    BLOCK_TO_WRAP = BasicTransformerBlock
-    print("Found BasicTransformerBlock from sgm.modules.attention")
-except ImportError:
-    try:
-        # Fallback attempt for diffusers structure
-        from diffusers.models.attention import BasicTransformerBlock
-        BLOCK_TO_WRAP = BasicTransformerBlock
-        print("Found BasicTransformerBlock from diffusers.models.attention")
-    except ImportError:
-        BLOCK_TO_WRAP = None
-        print("Warning: BasicTransformerBlock could not be imported. Cannot apply targeted SageAttention wrapping.")
-# ------
+# --- Custom SageAttention Processor --- #
+if SAGE_ATTENTION_AVAILABLE and PROCESSOR_BASE_CLASS is not None:
+    class SageAttentionProcessor(PROCESSOR_BASE_CLASS):
+        def __init__(self):
+            super().__init__()
+            if not hasattr(F, 'scaled_dot_product_attention'):
+                 print("Warning: Original F.scaled_dot_product_attention not found during SageAttentionProcessor init.")
+                 self.original_sdpa = None
+            else:
+                 self.original_sdpa = F.scaled_dot_product_attention
+
+        def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, **kwargs):
+            # Note: The exact kwargs and how to derive q, k, v might differ slightly
+            # depending on the specific Attention class being processed.
+            # This is a common pattern but might need adjustments.
+
+            residual = hidden_states
+            input_ndim = hidden_states.ndim
+
+            if input_ndim == 4:
+                batch_size, channel, height, width = hidden_states.shape
+                hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
+
+            batch_size, sequence_length, _ = (hidden_states.shape)
+
+            encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
+
+            # Get q, k, v
+            query = attn.to_q(hidden_states, **kwargs)
+            key = attn.to_k(encoder_hidden_states, **kwargs)
+            value = attn.to_v(encoder_hidden_states, **kwargs)
+
+            # Reshape q, k, v for sageattn (assuming HND layout: batch*heads, num_tokens, dim_head)
+            # This might need adjustment based on attn implementation details (heads, dim_head)
+            inner_dim = key.shape[-1]
+            head_dim = inner_dim // attn.heads
+
+            query = rearrange(query, 'b n (h d) -> (b h) n d', h=attn.heads)
+            key = rearrange(key, 'b n (h d) -> (b h) n d', h=attn.heads)
+            value = rearrange(value, 'b n (h d) -> (b h) n d', h=attn.heads)
+
+            # Call sageattn
+            # We might need to handle attention_mask appropriately if sageattn supports it
+            # or apply it manually if not.
+            # Assuming sageattn returns in the same shape it received
+            # print("Calling sageattn...")
+            hidden_states = sageattn(query, key, value, tensor_layout="HND") # Assuming HND is appropriate
+
+            # Reshape back to original shape
+            hidden_states = rearrange(hidden_states, '(b h) n d -> b n (h d)', h=attn.heads)
+
+            # Project out
+            hidden_states = attn.to_out[0](hidden_states, **kwargs)
+            # Add dropout
+            hidden_states = attn.to_out[1](hidden_states)
+
+            if input_ndim == 4:
+                hidden_states = hidden_states.transpose(-1, -2).reshape(batch_size, channel, height, width)
+
+            if attn.residual_connection:
+                hidden_states = hidden_states + residual
+
+            hidden_states = hidden_states / attn.rescale_output_factor
+
+            return hidden_states
+else:
+     # Define a dummy processor if sageattn is not available, so the set_attn_processor call doesn't fail
+     class SageAttentionProcessor(PROCESSOR_BASE_CLASS):
+          def __call__(self, attn, hidden_states, **kwargs):
+               # Fallback or error, depending on desired behavior
+               raise RuntimeError("SageAttention is not available, cannot use SageAttentionProcessor.")
+# -------
 
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
@@ -151,69 +222,28 @@ class GenericTrainer(BaseTrainer):
         )
         self.model.train_config = self.config
 
-        # --- Remove UNet forward wrap --- #
-        # REMOVED PREVIOUS WRAPPER for self.model.unet.forward
+        # --- Remove BasicTransformerBlock wrap --- #
+        # REMOVED PREVIOUS WRAPPER for BasicTransformerBlock._forward / forward
         # ---
 
-        # --- Wrap BasicTransformerBlock._forward for SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False) and BLOCK_TO_WRAP is not None:
+        # --- Set Attention Processor for SageAttention Start ---
+        if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
             if hasattr(self.model, 'unet') and self.model.unet is not None:
-                print("Attempting to wrap BasicTransformerBlock.forward methods for SageAttention...")
-                wrapped_count = 0
-                # --- Ensure F is imported --- #
-                import torch.nn.functional as F
-                # ---
-                original_sdpa = F.scaled_dot_product_attention
-                print(f"Original SDPA: {original_sdpa}")
-
-                # Recursive function to wrap the blocks
-                def wrap_block_forward(module):
-                    nonlocal wrapped_count
-                    for child_name, child_module in module.named_children():
-                        if isinstance(child_module, BLOCK_TO_WRAP):
-                            try:
-                                # --- Target the main 'forward' method --- #
-                                original_block_forward = child_module.forward
-                                # print(f"Wrapping forward for: {child_name} of type {type(child_module)}")
-
-                                # Define the wrapper function for forward
-                                def wrapped_block_forward(*args, **kwargs):
-                                    # print(f"Executing wrapped forward for {child_name}")
-                                    F.scaled_dot_product_attention = sageattn
-                                    try:
-                                        output = original_block_forward(*args, **kwargs)
-                                        return output
-                                    finally:
-                                        F.scaled_dot_product_attention = original_sdpa
-
-                                # Replace forward method
-                                child_module.forward = wrapped_block_forward
-                                # ---
-                                wrapped_count += 1
-                            except Exception as e:
-                                print(f"Failed to wrap forward for {child_name}: {e}")
-                        else:
-                            # Recurse into submodules
-                            wrap_block_forward(child_module)
-
-                # Start the recursive wrapping process on the U-Net
-                try:
-                    wrap_block_forward(self.model.unet)
-                    print(f"Successfully wrapped {wrapped_count} BasicTransformerBlock.forward methods.")
-                    if wrapped_count > 0:
-                         print("Reminder: For this wrapper to be effective, ensure 'spatial_transformer_attn_type' in your model's .yaml config is set to 'softmax'.")
-                    else:
-                         print("Warning: No BasicTransformerBlock instances found or wrapped in the UNet.")
-                except Exception as e:
-                     print(f"Error during recursive wrapping process: {e}")
-                     # Attempt to restore SDPA just in case it was modified mid-error
-                     F.scaled_dot_product_attention = original_sdpa
-
+                 if PROCESSOR_BASE_CLASS is not None:
+                     print("Setting SageAttentionProcessor for UNet...")
+                     try:
+                         # Instantiate the custom processor
+                         sage_processor = SageAttentionProcessor()
+                         # Set the processor
+                         self.model.unet.set_attn_processor(sage_processor)
+                         print("Successfully set SageAttentionProcessor for UNet.")
+                     except Exception as e:
+                         print(f"Failed to set SageAttentionProcessor: {e}")
+                 else:
+                     print("Warning: Cannot set AttentionProcessor because base class import failed.")
             else:
-                print("Could not find UNet model (self.model.unet) to apply SageAttention wrapper.")
-        elif BLOCK_TO_WRAP is None and getattr(self.config, 'sage_attention', False):
-             print("SageAttention wrapping skipped because BasicTransformerBlock could not be imported.")
-        # --- Wrap BasicTransformerBlock._forward for SageAttention End ---
+                 print("Could not find UNet model (self.model.unet) to apply SageAttention processor.")
+        # --- Set Attention Processor for SageAttention End ---
 
         self.callbacks.on_update_status("running model setup")
 
