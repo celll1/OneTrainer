@@ -78,7 +78,7 @@ else:
     class SageAttentionProcessor:
             def __call__(self, attn, hidden_states, **kwargs):
                 raise RuntimeError("SageAttention is not available, cannot use SageAttentionProcessor.")
-
+# ------------------------------
 # --- Flux Specific Processor --- #
 if SAGE_ATTENTION_AVAILABLE:
     # Define the processor for Flux models
