@@ -69,9 +69,7 @@ if SAGE_ATTENTION_AVAILABLE:
                  key = attn.norm_k(key)
 
             # Call sageattn - NOTE: attention_mask is NOT passed
-            hidden_states = sageattn(query, key, value, tensor_layout="BHND", is_causal=False) # BHND expected by sageattn?
-            # According to error message ValueError: not enough values to unpack (expected 4, got 3)
-            # The internal sageattn expected 4 dims: b, h_qo, qo_len, head_dim. BHND matches this.
+            hidden_states = sageattn(query, key, value, tensor_layout="HND", is_causal=False)
 
             # Reshape back using reshape().transpose() like AttnProcessor2_0
             hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
@@ -155,7 +153,7 @@ if SAGE_ATTENTION_AVAILABLE:
                  key = attn.norm_k(key)
 
             # Call sageattn - NOTE: attention_mask is NOT passed
-            hidden_states = sageattn(query, key, value, tensor_layout="BHND", is_causal=False)
+            hidden_states = sageattn(query, key, value, tensor_layout="HND", is_causal=False)
 
             # Reshape back using reshape().transpose()
             hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
