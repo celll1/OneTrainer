@@ -197,6 +197,11 @@ class ZClip:
         if clip_val is not None and self.skip_update_on_spike:
             return total_norm
         
-        # Update EMA with the effective norm (either the computed clip or the original norm).
-        self._update_ema(clip_val if clip_val is not None else total_norm)
-        return total_norm
+        # Determine the effective norm (after potential clipping) used for EMA update
+        effective_norm = clip_val if clip_val is not None else total_norm
+
+        # Update EMA with the effective norm.
+        self._update_ema(effective_norm)
+        
+        # Return the effective norm (after clipping)
+        return effective_norm

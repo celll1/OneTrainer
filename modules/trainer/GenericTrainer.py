@@ -683,8 +683,7 @@ class GenericTrainer(BaseTrainer):
                         scaler.scale(loss).backward()
                     else:
                         loss.backward()
-                    self.zclip.step(self.model)
-
+                    
                     has_gradient = True
                     accumulated_loss += loss.item()
 
@@ -695,12 +694,18 @@ class GenericTrainer(BaseTrainer):
                         elif scaler:
                             scaler.unscale_(self.model.optimizer)
                             if self.config.clip_grad_norm is not None:
-                                nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
+                                effective_grad_norm = nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
+                            # Apply ZClip and get the effective (post-clipping) grad norm
+                            if self.config.zclip:
+                                effective_grad_norm = self.zclip.step(self.model)
                             scaler.step(self.model.optimizer)
                             scaler.update()
                         else:
                             if self.config.clip_grad_norm is not None:
                                 nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
+                            # Apply ZClip and get the effective (post-clipping) grad norm
+                            if self.config.zclip:
+                                effective_grad_norm = self.zclip.step(self.model)
                             self.model.optimizer.step()
 
                         lr_scheduler.step()  # done before zero_grad, because some lr schedulers need gradients
@@ -712,6 +717,10 @@ class GenericTrainer(BaseTrainer):
                         )
 
                         self.tensorboard.add_scalar("loss/train_step", accumulated_loss, train_progress.global_step)
+                        # Report effective grad norm to TensorBoard
+                        if effective_grad_norm is not None:
+                            self.tensorboard.add_scalar("grad_norm/train_step", effective_grad_norm, train_progress.global_step)
+                        
                         ema_loss = ema_loss or accumulated_loss
                         ema_loss_steps += 1
                         ema_loss_decay = min(0.99, 1 - (1 / ema_loss_steps))
