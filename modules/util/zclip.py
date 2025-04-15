@@ -9,7 +9,12 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 
 def is_fsdp_model(pl_module):
-    return isinstance(pl_module, FSDP) or any(isinstance(m, FSDP) for m in pl_module.modules())
+    # OneTrainer manages FSDP status via config, not by wrapping modules directly in FSDP sometimes.
+    # Also, OneTrainer models might not have the standard .modules() iterator.
+    if hasattr(pl_module, 'train_config') and hasattr(pl_module.train_config, 'optimizer'):
+        return pl_module.train_config.optimizer.fsdp_in_use
+    # Fallback for safety, though likely unreachable if called from _compute_grad_norm where model has train_config
+    return isinstance(pl_module, FSDP) # Original check (partial)
 
 class ZClip:
     def __init__(self, alpha=0.97, z_thresh=2.5, max_grad_norm=1.0, eps=1e-6,
