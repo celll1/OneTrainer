@@ -28,6 +28,7 @@ from modules.util.memory_util import TorchMemoryRecorder
 from modules.util.time_util import get_string_timestamp
 from modules.util.torch_util import torch_gc
 from modules.util.TrainProgress import TrainProgress
+from modules.util.zclip import ZClip
 
 import torch
 from torch import Tensor, nn
@@ -39,102 +40,6 @@ from torchvision.transforms.functional import pil_to_tensor
 import huggingface_hub
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
-
-# # --- Import AttentionProcessor base class and einops --- #
-# from einops import rearrange
-# from torch.nn import Module
-# try:
-#     from diffusers.models.attention_processor import Attention
-#     PROCESSOR_BASE_CLASS = Attention
-#     print("Imported Attention processor base class from diffusers.")
-# except ImportError:
-#     # Fallback if the structure is different or Attention is not directly available
-#     # This might need adjustment based on the actual diffusers version/structure
-#     # For now, we'll assume a simple callable processor might work or define a dummy base
-#     class AttentionProcessorBase(Module):
-#          def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, **kwargs):
-#             raise NotImplementedError
-#     PROCESSOR_BASE_CLASS = AttentionProcessorBase
-#     print("Warning: Could not import standard Attention processor base. Using a fallback.")
-
-# # --- SageAttention Import --- #
-# try:
-#     import torch.nn.functional as F # Still needed for potential fallback/comparison? Keep for now.
-#     from sageattention import sageattn
-#     SAGE_ATTENTION_AVAILABLE = True
-#     print("SageAttention is available.")
-# except ImportError:
-#     SAGE_ATTENTION_AVAILABLE = False
-#     print("SageAttention not found, falling back to default attention mechanism.")
-# # ---
-
-# # --- Custom SageAttention Processor --- #
-# if SAGE_ATTENTION_AVAILABLE:
-#     # Define the processor as a standalone class
-#     class SageAttentionProcessor:
-#         def __init__(self):
-#             pass # シンプルな init
-
-#         def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, **kwargs):
-#             # Note: The exact kwargs and how to derive q, k, v might differ slightly
-#             # depending on the specific Attention class being processed.
-#             # This is a common pattern but might need adjustments.
-
-#             residual = hidden_states
-#             input_ndim = hidden_states.ndim
-
-#             if input_ndim == 4:
-#                 batch_size, channel, height, width = hidden_states.shape
-#                 hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
-
-#             batch_size, sequence_length, _ = (hidden_states.shape)
-
-#             encoder_hidden_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
-
-#             # Get q, k, v
-#             query = attn.to_q(hidden_states, **kwargs)
-#             key = attn.to_k(encoder_hidden_states, **kwargs)
-#             value = attn.to_v(encoder_hidden_states, **kwargs)
-
-#             # --- Reshape q, k, v to 4D for sageattn (HND layout: B, H, N, D) --- #
-#             inner_dim = key.shape[-1]
-#             head_dim = inner_dim // attn.heads
-
-#             query = rearrange(query, 'b n (h d) -> b h n d', h=attn.heads)
-#             key = rearrange(key, 'b n (h d) -> b h n d', h=attn.heads)
-#             value = rearrange(value, 'b n (h d) -> b h n d', h=attn.heads)
-#             # ---
-
-#             # Call sageattn
-#             # We might need to handle attention_mask appropriately if sageattn supports it
-#             # or apply it manually if not.
-#             # Assuming sageattn returns in the same shape it received (B, H, N, D for HND)
-#             hidden_states = sageattn(query, key, value, tensor_layout="HND") # Assuming HND is appropriate
-
-#             # --- Reshape back to original shape (B, N, C) --- #
-#             hidden_states = rearrange(hidden_states, 'b h n d -> b n (h d)', h=attn.heads)
-#             # ---
-
-#             # Project out
-#             hidden_states = attn.to_out[0](hidden_states, **kwargs)
-#             # Add dropout
-#             hidden_states = attn.to_out[1](hidden_states)
-
-#             if input_ndim == 4:
-#                 hidden_states = hidden_states.transpose(-1, -2).reshape(batch_size, channel, height, width)
-
-#             if attn.residual_connection:
-#                 hidden_states = hidden_states + residual
-
-#             hidden_states = hidden_states / attn.rescale_output_factor
-
-#             return hidden_states
-# else:
-#      # Define a dummy processor if sageattn is not available
-#      class SageAttentionProcessor:
-#           def __call__(self, attn, hidden_states, **kwargs):
-#                raise RuntimeError("SageAttention is not available, cannot use SageAttentionProcessor.")
-# # -------
 
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
@@ -217,22 +122,10 @@ class GenericTrainer(BaseTrainer):
         )
         self.model.train_config = self.config
 
-        # --- Set Attention Processor for SageAttention Start ---
-        # if SAGE_ATTENTION_AVAILABLE and getattr(self.config, 'sage_attention', False):
-        #     if hasattr(self.model, 'unet') and self.model.unet is not None:
-        #          # PROCESSOR_BASE_CLASS のチェックを削除
-        #          print("Setting SageAttentionProcessor for UNet...")
-        #          try:
-        #              # Instantiate the custom processor
-        #              sage_processor = SageAttentionProcessor()
-        #              # Set the processor
-        #              self.model.unet.set_attn_processor(sage_processor)
-        #              print("Successfully set SageAttentionProcessor for UNet.")
-        #          except Exception as e:
-        #              print(f"Failed to set SageAttentionProcessor: {e}")
-        #     else:
-        #          print("Could not find UNet model (self.model.unet) to apply SageAttention processor.")
-        # --- Set Attention Processor for SageAttention End ---
+        # --- ZClip ---
+        if self.config.zclip:
+            self.zclip = ZClip(mode="zscore", alpha=0.97, z_thresh=2.5, clip_option="adaptive_scaling", max_grad_norm=1.0, clip_factor=1.0)
+        # ---
 
         self.callbacks.on_update_status("running model setup")
 
@@ -790,6 +683,7 @@ class GenericTrainer(BaseTrainer):
                         scaler.scale(loss).backward()
                     else:
                         loss.backward()
+                    self.zclip.step(self.model)
 
                     has_gradient = True
                     accumulated_loss += loss.item()
