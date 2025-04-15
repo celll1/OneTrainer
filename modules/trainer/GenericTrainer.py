@@ -124,17 +124,16 @@ class GenericTrainer(BaseTrainer):
 
         # --- ZClip ---
         if self.config.zclip:
-            cfg = self.config.zclip_config
             self.zclip = ZClip(
-                alpha=cfg.alpha,
-                z_thresh=cfg.z_thresh,
+                alpha=self.config.zclip_config.alpha,
+                z_thresh=self.config.zclip_config.z_thresh,
                 max_grad_norm=self.config.clip_grad_norm,
                 eps=1e-6,
-                warmup_steps=cfg.warmup_steps,
-                mode=cfg.mode,
-                clip_option=cfg.clip_option,
-                clip_factor=cfg.clip_factor,
-                skip_update_on_spike=cfg.skip_update_on_spike
+                warmup_steps=self.config.zclip_config.warmup_steps,
+                mode=self.config.zclip_config.mode,
+                clip_option=self.config.zclip_config.clip_option,
+                clip_factor=self.config.zclip_config.clip_factor,
+                skip_update_on_spike=self.config.zclip_config.skip_update_on_spike
             )
         # ---
 
