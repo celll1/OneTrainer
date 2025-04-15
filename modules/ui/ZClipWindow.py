@@ -28,11 +28,9 @@ class ZClipWindow(ctk.CTkToplevel):
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=1)
 
-        self.frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-
         # --- UI 要素の配置 ---
-        self.__content_frame(self.frame)
+        frame = self.__content_frame(self)
+        frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         # ---
 
         components.button(self, 1, 0, "ok", self.__ok)

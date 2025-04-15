@@ -253,20 +253,8 @@ class TrainingTab:
         # --- ZClip (using options_adv for consistency) --- 
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping. Select Enabled/Disabled.")
-        # Bind options_adv directly to the UI state variable "zclip" (assuming it's a StringVar)
-        # Remove the command argument, state is handled by variable binding.
-        # Remove initialization of the temporary string variable.
-        components.options_adv(
-            frame, # master
-            11,    # row
-            1,     # col
-            ["Disabled", "Enabled"], # values
-            ui_state=self.ui_state,
-            var_name="zclip", # Bind directly to "zclip" (expected to be StringVar)
-            # command=... # Removed
-            adv_command=self.__open_zclip_window
-        )
-        # --- End ZClip ---
+        components.options_adv(frame, 11, 1, ["Disabled", "Enabled"], self.ui_state, "zclip",
+            adv_command=self.__open_zclip_window)
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
