@@ -257,7 +257,7 @@ class TrainingTab:
             frame,
             11,
             1,
-            options=["Disabled", "Enabled"],
+            ["Disabled", "Enabled"],
             ui_state=self.ui_state,
             var_name="zclip",
             command=self.__on_zclip_option_change,
