@@ -124,7 +124,18 @@ class GenericTrainer(BaseTrainer):
 
         # --- ZClip ---
         if self.config.zclip:
-            self.zclip = ZClip(mode="zscore", alpha=0.97, z_thresh=2.5, clip_option="adaptive_scaling", max_grad_norm=1.0, clip_factor=1.0)
+            cfg = self.config.zclip_config
+            self.zclip = ZClip(
+                alpha=cfg.alpha,
+                z_thresh=cfg.z_thresh,
+                max_grad_norm=self.config.clip_grad_norm,
+                eps=1e-6,
+                warmup_steps=cfg.warmup_steps,
+                mode=cfg.mode,
+                clip_option=cfg.clip_option,
+                clip_factor=cfg.clip_factor,
+                skip_update_on_spike=cfg.skip_update_on_spike
+            )
         # ---
 
         self.callbacks.on_update_status("running model setup")

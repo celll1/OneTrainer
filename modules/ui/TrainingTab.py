@@ -15,6 +15,7 @@ from modules.util.enum.TimestepDistribution import TimestepDistribution
 from modules.util.optimizer_util import change_optimizer
 from modules.util.ui import components
 from modules.util.ui.UIState import UIState
+from modules.ui.ZClipWindow import ZClipWindow
 
 import customtkinter as ctk
 
@@ -32,6 +33,7 @@ class TrainingTab:
         master.grid_columnconfigure(0, weight=1)
 
         self.scroll_frame = None
+        self.zclip_window = None
 
         self.refresh_ui()
 
@@ -243,15 +245,17 @@ class TrainingTab:
         components.options(frame, 9, 1, [str(x) for x in list(LearningRateScaler)], self.ui_state,
                            "learning_rate_scaler")
 
-        # clip grad norm
-        components.label(frame, 10, 0, "Clip Grad Norm",
-                         tooltip="Clips the gradient norm. Leave empty to disable gradient clipping.")
+        # Clip Gradient Norm
+        components.label(frame, 10, 0, "Clip Gradient Norm",
+                         tooltip="Clips the norm of the gradients to prevent exploding gradients. 1.0 is usually fine.")
         components.entry(frame, 10, 1, self.ui_state, "clip_grad_norm")
 
-        # zclip
-        components.label(frame, 11, 0, "ZClip",
-                         tooltip="Enables ZClip gradient clipping. This is a more advanced gradient clipping method that can help prevent gradient spikes.")
+        # ZClip checkbox and button
+        components.label(frame, 11, 0, "Enable ZClip",
+                         tooltip="Enable ZClip adaptive gradient clipping.")
         components.switch(frame, 11, 1, self.ui_state, "zclip")
+        components.button(frame, 11, 2, "ZClip Settings...", self.__open_zclip_window,
+                          tooltip="Open advanced ZClip settings window.")
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
@@ -743,6 +747,13 @@ class TrainingTab:
     def __open_offloading_window(self):
         window = OffloadingWindow(self.master, self.train_config, self.ui_state)
         self.master.wait_window(window)
+
+    def __open_zclip_window(self):
+        if self.zclip_window is None or not self.zclip_window.winfo_exists():
+            self.zclip_window = ZClipWindow(self.master, self.train_config, self.ui_state)
+            self.zclip_window.transient(self.master)
+        else:
+            self.zclip_window.focus()
 
     def __restore_optimizer_config(self, *args):
         optimizer_config = change_optimizer(self.train_config)
