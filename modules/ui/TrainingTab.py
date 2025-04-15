@@ -250,19 +250,21 @@ class TrainingTab:
                          tooltip="Clips the norm of the gradients to prevent exploding gradients. 1.0 is usually fine.")
         components.entry(frame, 10, 1, self.ui_state, "clip_grad_norm")
 
-        # --- ZClip --- 
+        # --- ZClip (using options_adv for consistency) --- 
         components.label(frame, 11, 0, "Enable ZClip",
-                         tooltip="Enable ZClip adaptive gradient clipping.")
-        # Place switch and button in the same cell using an inner frame
-        inner_frame = ctk.CTkFrame(master=frame, fg_color="transparent")
-        inner_frame.grid(row=11, column=1, sticky="w", padx=0, pady=0) # Use sticky="w" for left alignment
-        inner_frame.grid_columnconfigure(0, weight=0) # Switch
-        inner_frame.grid_columnconfigure(1, weight=0, pad=5) # Button with padding
-        
-        components.switch(inner_frame, 0, 0, self.ui_state, "zclip") 
-        # Use standard button, configure appearance if needed
-        zclip_button = components.button(inner_frame, 0, 1, "...", self.__open_zclip_window,
-                                         tooltip="Open advanced ZClip settings window.", width=40) 
+                         tooltip="Enable ZClip adaptive gradient clipping. Select Enabled/Disabled.")
+        components.options_adv(
+            master=frame,
+            row=11,
+            col=1,
+            options=["Disabled", "Enabled"], # Options for the dropdown
+            ui_state=self.ui_state,
+            variable_path="zclip", # Bind to the boolean state
+            command=self.__on_zclip_option_change, # Command to update boolean state
+            button_command=self.__open_zclip_window, # Command for '...' button
+            tooltip="Enable or disable ZClip gradient clipping.",
+            button_tooltip="Open advanced ZClip settings window."
+        )
         # --- End ZClip ---
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
@@ -758,10 +760,19 @@ class TrainingTab:
 
     def __open_zclip_window(self):
         if self.zclip_window is None or not self.zclip_window.winfo_exists():
+            # Ensure config is updated before opening window
+            self.train_config.zclip = self.ui_state.get("zclip") 
             self.zclip_window = ZClipWindow(self.master, self.train_config, self.ui_state)
             self.zclip_window.transient(self.master)
         else:
             self.zclip_window.focus()
+
+    def __on_zclip_option_change(self, selected_option: str):
+        """Updates the boolean zclip state based on dropdown selection."""
+        is_enabled = (selected_option == "Enabled")
+        self.ui_state.set("zclip", is_enabled)
+        # Optionally update config directly if needed, though UIState should handle it
+        # self.train_config.zclip = is_enabled 
 
     def __restore_optimizer_config(self, *args):
         optimizer_config = change_optimizer(self.train_config)
