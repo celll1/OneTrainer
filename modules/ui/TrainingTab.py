@@ -2,6 +2,7 @@ from modules.ui.OffloadingWindow import OffloadingWindow
 from modules.ui.OptimizerParamsWindow import OptimizerParamsWindow
 from modules.ui.SchedulerParamsWindow import SchedulerParamsWindow
 from modules.ui.TimestepDistributionWindow import TimestepDistributionWindow
+from modules.ui.ZClipWindow import ZClipWindow
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.enum.DataType import DataType
 from modules.util.enum.EMAMode import EMAMode
@@ -15,7 +16,6 @@ from modules.util.enum.TimestepDistribution import TimestepDistribution
 from modules.util.optimizer_util import change_optimizer
 from modules.util.ui import components
 from modules.util.ui.UIState import UIState
-from modules.ui.ZClipWindow import ZClipWindow
 
 import customtkinter as ctk
 
@@ -250,11 +250,11 @@ class TrainingTab:
                          tooltip="Clips the norm of the gradients to prevent exploding gradients. 1.0 is usually fine.")
         components.entry(frame, 10, 1, self.ui_state, "clip_grad_norm")
 
-        # --- ZClip (using options_adv for consistency) --- 
+        # ZClip
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping. Select Enabled/Disabled.")
-        components.options_adv(frame, 11, 1, ["Disabled", "Enabled"], self.ui_state, "zclip",
-            adv_command=self.__open_zclip_window)
+        components.options_adv(frame, 11, 1, [str(x) for x in [False, True]], self.ui_state,
+                              "zclip", adv_command=self.__open_zclip_window)
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
@@ -662,8 +662,6 @@ class TrainingTab:
         components.label(frame, 8, 0, "Dynamic Timestep Shifting",
                          tooltip="Dynamically shift the timestep distribution based on resolution. Use the preview to see more details.")
         components.switch(frame, 8, 1, self.ui_state, "dynamic_timestep_shifting")
-
-
 
     def __create_masked_frame(self, master, row):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
