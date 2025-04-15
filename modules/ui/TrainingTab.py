@@ -250,12 +250,19 @@ class TrainingTab:
                          tooltip="Clips the norm of the gradients to prevent exploding gradients. 1.0 is usually fine.")
         components.entry(frame, 10, 1, self.ui_state, "clip_grad_norm")
 
-        # ZClip checkbox and button
+        # --- ZClip --- 
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping.")
-        components.switch(frame, 11, 1, self.ui_state, "zclip")
-        components.button(frame, 11, 2, "ZClip Settings...", self.__open_zclip_window,
-                          tooltip="Open advanced ZClip settings window.")
+        # Place switch and button in the same cell using an inner frame or adjust columns
+        inner_frame = ctk.CTkFrame(master=frame, fg_color="transparent")
+        inner_frame.grid(row=11, column=1, sticky="ew", padx=0, pady=0)
+        inner_frame.grid_columnconfigure(0, weight=0) # Switch
+        inner_frame.grid_columnconfigure(1, weight=0) # Button
+        
+        components.switch(inner_frame, 0, 0, self.ui_state, "zclip")
+        components.button_adv(inner_frame, 0, 1, self.__open_zclip_window,
+                              tooltip="Open advanced ZClip settings window.")
+        # --- End ZClip ---
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
