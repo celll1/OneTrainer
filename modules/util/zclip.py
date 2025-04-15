@@ -89,13 +89,13 @@ class ZClip:
           - For FSDP: Sum the squared norms across sharded parameters and perform an all-reduce.
           - For DDP or non-distributed: Use all local parameters.
         """
-        first_param = next(model.parameters())
+        first_param = next(model.parameters.parameters())
         device = first_param.device
         dtype = first_param.dtype
 
         if is_fsdp_model(model):
             local_norm_sq = torch.stack(
-                [p.grad.to(dtype).norm(2).pow(2) for p in model.parameters() if p.grad is not None]
+                [p.grad.to(dtype).norm(2).pow(2) for p in model.parameters.parameters() if p.grad is not None]
             ).to(device)
             local_norm_sq = torch.sum(local_norm_sq)
             # Aggregate the squared norms across ranks.
@@ -104,7 +104,7 @@ class ZClip:
             return total_norm.item()
         else:
             grad_norms = [
-                p.grad.to(dtype).norm(2) for p in model.parameters() if p.grad is not None
+                p.grad.to(dtype).norm(2) for p in model.parameters.parameters() if p.grad is not None
             ]
             if not grad_norms:
                 return 0.0
@@ -148,7 +148,7 @@ class ZClip:
 
         # If clipping is needed, scale each gradient in-place.
         if clip_coef < 1.0:
-            for param in pl_module.parameters():
+            for param in pl_module.parameters.parameters():
                 if param.grad is not None:
                     param.grad.data.mul_(clip_coef)
 
@@ -183,7 +183,7 @@ class ZClip:
             if len(self.buffer) >= self.warmup_steps:
                 self._initialize_ema()
             if self.max_grad_norm is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), self.max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(model.parameters.parameters(), self.max_grad_norm)
             return total_norm
 
         # Compute the clip value based on the selected mode and clip_option.
