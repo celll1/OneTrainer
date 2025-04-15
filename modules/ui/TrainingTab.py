@@ -253,8 +253,20 @@ class TrainingTab:
         # --- ZClip (using options_adv for consistency) --- 
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping. Select Enabled/Disabled.")
-        components.options_adv(frame, 11, 1, ["Disabled", "Enabled"], self.ui_state, "zclip",
-                               command=self.__on_zclip_option_change, adv_command=self.__open_zclip_window)
+        # Bind options_adv directly to the UI state variable "zclip" (assuming it's a StringVar)
+        # Remove the command argument, state is handled by variable binding.
+        # Remove initialization of the temporary string variable.
+        components.options_adv(
+            frame, # master
+            11,    # row
+            1,     # col
+            ["Disabled", "Enabled"], # values
+            ui_state=self.ui_state,
+            var_name="zclip", # Bind directly to "zclip" (expected to be StringVar)
+            # command=... # Removed
+            adv_command=self.__open_zclip_window
+        )
+        # --- End ZClip ---
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
@@ -748,20 +760,8 @@ class TrainingTab:
         self.master.wait_window(window)
 
     def __open_zclip_window(self):
-        if self.zclip_window is None or not self.zclip_window.winfo_exists():
-            # Ensure config is updated before opening window
-            self.train_config.zclip = self.ui_state.get("zclip") 
-            self.zclip_window = ZClipWindow(self.master, self.train_config, self.ui_state)
-            self.zclip_window.transient(self.master)
-        else:
-            self.zclip_window.focus()
-
-    def __on_zclip_option_change(self, selected_option: str):
-        """Updates the boolean zclip state based on dropdown selection."""
-        is_enabled = (selected_option == "Enabled")
-        self.ui_state.get_var("zclip").set(is_enabled)
-        # Optionally update config directly if needed, though UIState should handle it
-        # self.train_config.zclip = is_enabled 
+        window = ZClipWindow(self.master, self.train_config, self.ui_state)
+        self.master.wait_window(window)
 
     def __restore_optimizer_config(self, *args):
         optimizer_config = change_optimizer(self.train_config)
