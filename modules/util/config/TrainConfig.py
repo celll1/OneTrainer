@@ -31,6 +31,32 @@ from modules.util.ModelWeightDtypes import ModelWeightDtypes
 from modules.util.torch_util import default_device
 
 
+class TrainZClipConfig(BaseConfig):
+    alpha: float
+    z_thresh: float
+    warmup_steps: int
+    mode: str # Enum にすべきかもしれないが、zclip.py に合わせて str
+    clip_option: str # Enum にすべきかもしれないが、zclip.py に合わせて str
+    clip_factor: float
+    skip_update_on_spike: bool
+
+    def __init__(self, data: list[(str, Any, type, bool)]):
+        super().__init__(data)
+
+    @staticmethod
+    def default_values():
+        data = []
+        # name, default value, data type, nullable
+        data.append(("alpha", 0.97, float, False))
+        data.append(("z_thresh", 2.5, float, False))
+        data.append(("warmup_steps", 25, int, False))
+        data.append(("mode", "zscore", str, False)) # "zscore" or "percentile"
+        data.append(("clip_option", "adaptive_scaling", str, False)) # "adaptive_scaling" or "mean"
+        data.append(("clip_factor", 1.0, float, False))
+        data.append(("skip_update_on_spike", False, bool, False))
+        return TrainZClipConfig(data)
+
+
 class TrainOptimizerConfig(BaseConfig):
     optimizer: Optimizer
     adam_w_mode: bool
@@ -245,13 +271,14 @@ class TrainConfig(BaseConfig):
     cache_dir: str
     tensorboard: bool
     tensorboard_expose: bool
-    tensorboard_port: str
+    tensorboard_port: int # 元は str だったが int に修正
     validation: bool
     validate_after: float
     validate_after_unit: TimeUnit
     continue_last_backup: bool
     include_train_config: ConfigPart
     zclip: bool
+    zclip_config: TrainZClipConfig # <-- 追加
 
     # model settings
     base_model_name: str
@@ -734,6 +761,8 @@ class TrainConfig(BaseConfig):
         data.append(("validate_after_unit", TimeUnit.EPOCH, TimeUnit, False))
         data.append(("continue_last_backup", False, bool, False))
         data.append(("include_train_config", ConfigPart.NONE, ConfigPart, False))
+        data.append(("zclip", False, bool, False))
+        data.append(("zclip_config", TrainZClipConfig.default_values(), TrainZClipConfig, False))
 
         # model settings
         data.append(("base_model_name", "stable-diffusion-v1-5/stable-diffusion-v1-5", str, False))
@@ -788,7 +817,6 @@ class TrainConfig(BaseConfig):
         data.append(("loss_scaler", LossScaler.NONE, LossScaler, False))
         data.append(("learning_rate_scaler", LearningRateScaler.NONE, LearningRateScaler, False))
         data.append(("clip_grad_norm", 1.0, float, True))
-        data.append(("zclip", False, bool, False))
 
         # noise
         data.append(("offset_noise_weight", 0.0, float, False))
