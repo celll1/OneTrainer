@@ -253,15 +253,16 @@ class TrainingTab:
         # --- ZClip --- 
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping.")
-        # Place switch and button in the same cell using an inner frame or adjust columns
+        # Place switch and button in the same cell using an inner frame
         inner_frame = ctk.CTkFrame(master=frame, fg_color="transparent")
-        inner_frame.grid(row=11, column=1, sticky="ew", padx=0, pady=0)
+        inner_frame.grid(row=11, column=1, sticky="w", padx=0, pady=0) # Use sticky="w" for left alignment
         inner_frame.grid_columnconfigure(0, weight=0) # Switch
-        inner_frame.grid_columnconfigure(1, weight=0) # Button
+        inner_frame.grid_columnconfigure(1, weight=0, pad=5) # Button with padding
         
-        components.switch(inner_frame, 0, 0, self.ui_state, "zclip")
-        components.button_adv(inner_frame, 0, 1, self.__open_zclip_window,
-                              tooltip="Open advanced ZClip settings window.")
+        components.switch(inner_frame, 0, 0, self.ui_state, "zclip", anchor="w")
+        # Use standard button, configure appearance if needed
+        zclip_button = components.button(inner_frame, 0, 1, "...", self.__open_zclip_window,
+                                         tooltip="Open advanced ZClip settings window.", width=40) 
         # --- End ZClip ---
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
