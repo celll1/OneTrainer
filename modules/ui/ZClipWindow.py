@@ -106,8 +106,8 @@ class ZClipWindow(ctk.CTkToplevel):
 
     def __update_visibility(self):
         """Mode と Clip Option の選択に応じて UI 要素の表示/非表示を切り替える"""
-        selected_mode = self.zclip_ui_state.get("mode")
-        selected_clip_option = self.zclip_ui_state.get("clip_option")
+        selected_mode = self.zclip_ui_state.get_var("mode").get()
+        selected_clip_option = self.zclip_ui_state.get_var("clip_option").get()
 
         is_zscore_mode = selected_mode == "zscore"
         is_adaptive_scaling = selected_clip_option == "adaptive_scaling"
