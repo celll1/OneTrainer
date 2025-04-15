@@ -278,7 +278,6 @@ class TrainConfig(BaseConfig):
     continue_last_backup: bool
     include_train_config: ConfigPart
     zclip: bool
-    zclip_config: TrainZClipConfig # <-- 追加
 
     # model settings
     base_model_name: str

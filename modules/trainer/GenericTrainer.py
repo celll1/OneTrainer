@@ -703,18 +703,20 @@ class GenericTrainer(BaseTrainer):
                             scaler.update()
                         elif scaler:
                             scaler.unscale_(self.model.optimizer)
+                            effective_grad_norm = None
                             if self.config.clip_grad_norm is not None:
                                 effective_grad_norm = nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
                             # Apply ZClip and get the effective (post-clipping) grad norm
-                            if self.config.zclip:
+                            if self.config.zclip == ZClipEnableMode.ENABLED:
                                 effective_grad_norm = self.zclip.step(self.model)
                             scaler.step(self.model.optimizer)
                             scaler.update()
                         else:
+                            effective_grad_norm = None
                             if self.config.clip_grad_norm is not None:
-                                nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
+                                effective_grad_norm = nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
                             # Apply ZClip and get the effective (post-clipping) grad norm
-                            if self.config.zclip:
+                            if self.config.zclip == ZClipEnableMode.ENABLED:
                                 effective_grad_norm = self.zclip.step(self.model)
                             self.model.optimizer.step()
 

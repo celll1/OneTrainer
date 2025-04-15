@@ -1,6 +1,6 @@
 import customtkinter as ctk
 
-from modules.util.config.TrainConfig import TrainConfig, TrainZClipConfig
+from modules.util.config.TrainConfig import TrainConfig
 from modules.util.ui import components
 from modules.util.ui.ui_utils import set_window_icon
 from modules.util.ui.UIState import UIState
@@ -105,24 +105,24 @@ class ZClipWindow(ctk.CTkToplevel):
 
     def __update_visibility(self):
         """Mode と Clip Option の選択に応じて UI 要素の表示/非表示を切り替える"""
-        selected_mode = self.zclip_ui_state.get("mode")
-        selected_clip_option = self.zclip_ui_state.get("clip_option")
+        selected_mode = self.zclip_ui_state.mode
+        selected_clip_option = self.zclip_ui_state.clip_option
 
         is_zscore_mode = selected_mode == "zscore"
         is_adaptive_scaling = selected_clip_option == "adaptive_scaling"
 
         # Clip Option の表示制御
         if is_zscore_mode:
-            self.clip_option_label.grid()
-            self.clip_option_widget.grid()
+            self.clip_option_label.grid(row=4, column=0, sticky="w")
+            self.clip_option_widget.grid(row=4, column=1, sticky="ew")
         else:
             self.clip_option_label.grid_remove()
             self.clip_option_widget.grid_remove()
 
         # Clip Factor の表示制御
         if is_zscore_mode and is_adaptive_scaling:
-            self.clip_factor_label.grid()
-            self.clip_factor_widget.grid()
+            self.clip_factor_label.grid(row=5, column=0, sticky="w")
+            self.clip_factor_widget.grid(row=5, column=1, sticky="ew")
         else:
             self.clip_factor_label.grid_remove()
             self.clip_factor_widget.grid_remove()
@@ -134,7 +134,7 @@ class ZClipWindow(ctk.CTkToplevel):
     # def __load_defaults(self):
     #     """デフォルト値をロードする (必要であれば実装)"""
     #     default_config = TrainZClipConfig.default_values()
-    #     self.zclip_ui_state.update(default_config)
+    #     self.zclip_ui_state.update(default_config.to_dict())
     #     self.__update_visibility() # デフォルトロード後も表示を更新
 
     def __ok(self):
