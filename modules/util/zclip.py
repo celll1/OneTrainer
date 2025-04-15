@@ -89,7 +89,7 @@ class ZClip:
           - For FSDP: Sum the squared norms across sharded parameters and perform an all-reduce.
           - For DDP or non-distributed: Use all local parameters.
         """
-        first_param = next(model.parameters.parameters())
+        first_param = next(iter(model.parameters.parameters()))
         device = first_param.device
         dtype = first_param.dtype
 
