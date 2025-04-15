@@ -253,19 +253,10 @@ class TrainingTab:
         # --- ZClip (using options_adv for consistency) --- 
         components.label(frame, 11, 0, "Enable ZClip",
                          tooltip="Enable ZClip adaptive gradient clipping. Select Enabled/Disabled.")
-        components.options_adv(
-            master=frame,
-            row=11,
-            col=1,
-            options=["Disabled", "Enabled"], # Options for the dropdown
-            ui_state=self.ui_state,
-            variable_path="zclip", # Bind to the boolean state
-            command=self.__on_zclip_option_change, # Command to update boolean state
-            button_command=self.__open_zclip_window, # Command for '...' button
-            tooltip="Enable or disable ZClip gradient clipping.",
-            button_tooltip="Open advanced ZClip settings window."
-        )
-        # --- End ZClip ---
+        components.options_adv(frame, 11, 1, ["Disabled", "Enabled"], self.ui_state, "zclip",
+                               command=self.__on_zclip_option_change, button_command=self.__open_zclip_window,
+                               tooltip="Enable or disable ZClip gradient clipping.",
+                               button_tooltip="Open advanced ZClip settings window.")
 
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
