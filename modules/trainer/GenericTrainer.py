@@ -41,6 +41,7 @@ import huggingface_hub
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
 
+
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
     model_setup: BaseModelSetup
@@ -693,7 +694,7 @@ class GenericTrainer(BaseTrainer):
                         scaler.scale(loss).backward()
                     else:
                         loss.backward()
-                    
+
                     has_gradient = True
                     accumulated_loss += loss.item()
 
@@ -707,7 +708,7 @@ class GenericTrainer(BaseTrainer):
                             if self.config.clip_grad_norm is not None:
                                 effective_grad_norm = nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
                             # Apply ZClip and get the effective (post-clipping) grad norm
-                            if self.config.zclip == ZClipEnableMode.ENABLED:
+                            if self.config.zclip:
                                 effective_grad_norm = self.zclip.step(self.model)
                             scaler.step(self.model.optimizer)
                             scaler.update()
@@ -716,7 +717,7 @@ class GenericTrainer(BaseTrainer):
                             if self.config.clip_grad_norm is not None:
                                 effective_grad_norm = nn.utils.clip_grad_norm_(self.parameters, self.config.clip_grad_norm)
                             # Apply ZClip and get the effective (post-clipping) grad norm
-                            if self.config.zclip == ZClipEnableMode.ENABLED:
+                            if self.config.zclip:
                                 effective_grad_norm = self.zclip.step(self.model)
                             self.model.optimizer.step()
 
@@ -732,7 +733,7 @@ class GenericTrainer(BaseTrainer):
                         # Report effective grad norm to TensorBoard
                         if effective_grad_norm is not None:
                             self.tensorboard.add_scalar("grad_norm/train_step", effective_grad_norm, train_progress.global_step)
-                        
+
                         ema_loss = ema_loss or accumulated_loss
                         ema_loss_steps += 1
                         ema_loss_decay = min(0.99, 1 - (1 / ema_loss_steps))
