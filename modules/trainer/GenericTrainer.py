@@ -28,6 +28,7 @@ from modules.util.memory_util import TorchMemoryRecorder
 from modules.util.time_util import get_string_timestamp
 from modules.util.torch_util import torch_gc
 from modules.util.TrainProgress import TrainProgress
+from modules.util.zclip import ZClip
 
 import torch
 from torch import Tensor, nn
@@ -39,7 +40,6 @@ from torchvision.transforms.functional import pil_to_tensor
 import huggingface_hub
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
-
 
 class GenericTrainer(BaseTrainer):
     model_loader: BaseModelLoader
@@ -121,6 +121,11 @@ class GenericTrainer(BaseTrainer):
             weight_dtypes=self.config.weight_dtypes(),
         )
         self.model.train_config = self.config
+
+        # --- ZClip ---
+        if self.config.zclip:
+            self.zclip = ZClip(mode="zscore", alpha=0.97, z_thresh=2.5, clip_option="adaptive_scaling", max_grad_norm=1.0, clip_factor=1.0)
+        # ---
 
         self.callbacks.on_update_status("running model setup")
 
@@ -678,6 +683,7 @@ class GenericTrainer(BaseTrainer):
                         scaler.scale(loss).backward()
                     else:
                         loss.backward()
+                    self.zclip.step(self.model)
 
                     has_gradient = True
                     accumulated_loss += loss.item()
