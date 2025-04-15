@@ -360,14 +360,17 @@ class TrainConfig(BaseConfig):
     # text encoder
     text_encoder: TrainModelPartConfig
     text_encoder_layer_skip: int
+    text_encoder_max_token_length: int
 
     # text encoder 2
     text_encoder_2: TrainModelPartConfig
     text_encoder_2_layer_skip: int
+    text_encoder_2_max_token_length: int
 
     # text encoder 3
     text_encoder_3: TrainModelPartConfig
     text_encoder_3_layer_skip: int
+    text_encoder_3_max_token_length: int
 
     # vae
     vae: TrainModelPartConfig
@@ -858,6 +861,7 @@ class TrainConfig(BaseConfig):
         text_encoder.weight_dtype = DataType.NONE
         data.append(("text_encoder", text_encoder, TrainModelPartConfig, False))
         data.append(("text_encoder_layer_skip", 0, int, False))
+        data.append(("text_encoder_max_token_length", 77, int, False))
 
         # text encoder 2
         text_encoder_2 = TrainModelPartConfig.default_values()
@@ -868,6 +872,7 @@ class TrainConfig(BaseConfig):
         text_encoder_2.weight_dtype = DataType.NONE
         data.append(("text_encoder_2", text_encoder_2, TrainModelPartConfig, False))
         data.append(("text_encoder_2_layer_skip", 0, int, False))
+        data.append(("text_encoder_2_max_token_length", 77, int, False))
 
         # text encoder 3
         text_encoder_3 = TrainModelPartConfig.default_values()
@@ -878,6 +883,7 @@ class TrainConfig(BaseConfig):
         text_encoder_3.weight_dtype = DataType.NONE
         data.append(("text_encoder_3", text_encoder_3, TrainModelPartConfig, False))
         data.append(("text_encoder_3_layer_skip", 0, int, False))
+        data.append(("text_encoder_3_max_token_length", 77, int, False))
 
         # vae
         vae = TrainModelPartConfig.default_values()

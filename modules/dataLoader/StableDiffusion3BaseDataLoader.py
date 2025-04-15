@@ -64,7 +64,6 @@ class StableDiffusion3BaseDataLoader(
         return self.__dl
 
     def _preparation_modules(self, config: TrainConfig, model: StableDiffusion3Model):
-        max_tokens = model.tokenizer_1.model_max_length if model.tokenizer_1 is not None else 77
 
         rescale_image = RescaleImageChannels(image_in_name='image', image_out_name='image', in_range_min=0, in_range_max=1, out_range_min=-1, out_range_max=1)
         rescale_conditioning_image = RescaleImageChannels(image_in_name='conditioning_image', image_out_name='conditioning_image', in_range_min=0, in_range_max=1, out_range_min=-1, out_range_max=1)
@@ -76,11 +75,25 @@ class StableDiffusion3BaseDataLoader(
         add_embeddings_to_prompt_3 = MapData(in_name='prompt', out_name='prompt_3', map_fn=model.add_text_encoder_3_embeddings_to_prompt)
         encode_conditioning_image = EncodeVAE(in_name='conditioning_image', out_name='latent_conditioning_image_distribution', vae=model.vae, autocast_contexts=[model.autocast_context], dtype=model.train_dtype.torch_dtype())
         conditioning_image_sample = SampleVAEDistribution(in_name='latent_conditioning_image_distribution', out_name='latent_conditioning_image', mode='mean')
-        tokenize_prompt_1 = Tokenize(in_name='prompt_1', tokens_out_name='tokens_1', mask_out_name='tokens_mask_1', tokenizer=model.tokenizer_1, max_token_length=max_tokens)
-        tokenize_prompt_2 = Tokenize(in_name='prompt_2', tokens_out_name='tokens_2', mask_out_name='tokens_mask_2', tokenizer=model.tokenizer_2, max_token_length=max_tokens)
-        tokenize_prompt_3 = Tokenize(in_name='prompt_3', tokens_out_name='tokens_3', mask_out_name='tokens_mask_3', tokenizer=model.tokenizer_3, max_token_length=max_tokens)
-        encode_prompt_1 = EncodeClipText(in_name='tokens_1', tokens_attention_mask_in_name=None, hidden_state_out_name='text_encoder_1_hidden_state', pooled_out_name='text_encoder_1_pooled_state', add_layer_norm=False, text_encoder=model.text_encoder_1, hidden_state_output_index=-(2 + config.text_encoder_layer_skip), autocast_contexts=[model.autocast_context], dtype=model.train_dtype.torch_dtype())
-        encode_prompt_2 = EncodeClipText(in_name='tokens_2', tokens_attention_mask_in_name=None, hidden_state_out_name='text_encoder_2_hidden_state', pooled_out_name='text_encoder_2_pooled_state', add_layer_norm=False, text_encoder=model.text_encoder_2, hidden_state_output_index=-(2 + config.text_encoder_2_layer_skip), autocast_contexts=[model.autocast_context], dtype=model.train_dtype.torch_dtype())
+
+        # Use max_token_length from config for tokenizers
+        tokenize_prompt_1 = Tokenize(in_name='prompt_1', tokens_out_name='tokens_1', mask_out_name='tokens_mask_1', tokenizer=model.tokenizer_1, max_token_length=config.text_encoder_max_token_length)
+        tokenize_prompt_2 = Tokenize(in_name='prompt_2', tokens_out_name='tokens_2', mask_out_name='tokens_mask_2', tokenizer=model.tokenizer_2, max_token_length=config.text_encoder_2_max_token_length)
+        tokenize_prompt_3 = Tokenize(in_name='prompt_3', tokens_out_name='tokens_3', mask_out_name='tokens_mask_3', tokenizer=model.tokenizer_3, max_token_length=config.text_encoder_3_max_token_length) # T5 uses its own max length, no chunking needed here
+
+        # Determine chunk length and multiples based on the *minimum* of the *CLIP* max lengths
+        chunk_length = 75
+        max_token_length_clip_min = min(
+            config.text_encoder_max_token_length,
+            config.text_encoder_2_max_token_length
+        )
+        # Limit multiples to 3 as in the original diff
+        max_embeddings_multiples = min(max_token_length_clip_min // chunk_length, 3) # Integer division
+
+        # Pass chunking parameters to EncodeClipText for encoders 1 and 2
+        encode_prompt_1 = EncodeClipText(in_name='tokens_1', tokens_attention_mask_in_name=None, hidden_state_out_name='text_encoder_1_hidden_state', pooled_out_name='text_encoder_1_pooled_state', add_layer_norm=False, text_encoder=model.text_encoder_1, hidden_state_output_index=-(2 + config.text_encoder_layer_skip), autocast_contexts=[model.autocast_context], chunk_length=chunk_length, max_embeddings_multiples=max_embeddings_multiples, dtype=model.train_dtype.torch_dtype())
+        encode_prompt_2 = EncodeClipText(in_name='tokens_2', tokens_attention_mask_in_name=None, hidden_state_out_name='text_encoder_2_hidden_state', pooled_out_name='text_encoder_2_pooled_state', add_layer_norm=False, text_encoder=model.text_encoder_2, hidden_state_output_index=-(2 + config.text_encoder_2_layer_skip), autocast_contexts=[model.autocast_context], chunk_length=chunk_length, max_embeddings_multiples=max_embeddings_multiples, dtype=model.train_dtype.torch_dtype())
+        # T5 encoder does not seem to use chunking in the diff
         encode_prompt_3 = EncodeT5Text(tokens_in_name='tokens_3', tokens_attention_mask_in_name=None, hidden_state_out_name='text_encoder_3_hidden_state', pooled_out_name=None, add_layer_norm=True, text_encoder=model.text_encoder_3, hidden_state_output_index=-(1 + config.text_encoder_3_layer_skip), autocast_contexts=[model.autocast_context, model.text_encoder_3_autocast_context], dtype=model.text_encoder_3_train_dtype.torch_dtype())
 
         modules = [rescale_image, encode_image, image_sample]

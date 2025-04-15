@@ -95,7 +95,7 @@ class StableDiffusionXLModel(BaseModel):
         self.embedding = None
         self.additional_embeddings = []
         self.embedding_wrapper_1 = None
-        self.embedding_wrapper_1 = None
+        self.embedding_wrapper_2 = None
 
         self.text_encoder_1_lora = None
         self.text_encoder_2_lora = None
@@ -204,13 +204,14 @@ class StableDiffusionXLModel(BaseModel):
             text_encoder_1_dropout_probability: float | None = None,
             text_encoder_2_dropout_probability: float | None = None,
             pooled_text_encoder_2_output: Tensor = None,
+            text_encoder_max_token_length: int = 77,
+            text_encoder_2_max_token_length: int = 77,
     ) -> tuple[Tensor, Tensor, Tensor]:
         if tokens_1 is None and text is not None:
             tokenizer_output = self.tokenizer_1(
                 self.add_text_encoder_1_embeddings_to_prompt(text),
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                padding=False,
+                truncation=False,
                 return_tensors="pt",
             )
             tokens_1 = tokenizer_output.input_ids.to(self.text_encoder_1.device)
@@ -218,12 +219,20 @@ class StableDiffusionXLModel(BaseModel):
         if tokens_2 is None and text is not None:
             tokenizer_output = self.tokenizer_2(
                 self.add_text_encoder_2_embeddings_to_prompt(text),
-                padding='max_length',
-                truncation=True,
-                max_length=77,
+                padding=False,
+                truncation=False,
                 return_tensors="pt",
             )
             tokens_2 = tokenizer_output.input_ids.to(self.text_encoder_2.device)
+
+        # Determine chunk length and multiples based on the *minimum* of the two max lengths for safety in encode step
+        chunk_length = 75
+        max_token_length_min = min(
+            text_encoder_max_token_length,
+            text_encoder_2_max_token_length,
+        )
+        # Limit multiples to 3 as in the original diff
+        max_embeddings_multiples = min(max_token_length_min // chunk_length, 3) # Integer division
 
         text_encoder_1_output, _ = encode_clip(
             text_encoder=self.text_encoder_1,
@@ -234,6 +243,8 @@ class StableDiffusionXLModel(BaseModel):
             add_pooled_output=False,
             use_attention_mask=False,
             add_layer_norm=False,
+            chunk_length=chunk_length,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
 
         text_encoder_2_output, pooled_text_encoder_2_output = encode_clip(
@@ -246,6 +257,8 @@ class StableDiffusionXLModel(BaseModel):
             pooled_text_encoder_output=pooled_text_encoder_2_output,
             use_attention_mask=False,
             add_layer_norm=False,
+            chunk_length=chunk_length,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
 
         text_encoder_1_output = self._apply_output_embeddings(
@@ -284,5 +297,19 @@ class StableDiffusionXLModel(BaseModel):
             text_encoder_2_output: Tensor,
             pooled_text_encoder_2_output: Tensor,
     ) -> tuple[Tensor, Tensor]:
+        # Align sequence lengths of TE1 and TE2 outputs
+        max_seq_len = max(text_encoder_1_output.shape[1], text_encoder_2_output.shape[1])
+
+        if text_encoder_1_output.shape[1] < max_seq_len:
+            text_encoder_1_output = torch.nn.functional.pad(
+                text_encoder_1_output,
+                (0, 0, 0, max_seq_len - text_encoder_1_output.shape[1])
+            )
+        if text_encoder_2_output.shape[1] < max_seq_len:
+            text_encoder_2_output = torch.nn.functional.pad(
+                text_encoder_2_output,
+                (0, 0, 0, max_seq_len - text_encoder_2_output.shape[1])
+            )
+
         text_encoder_output = torch.concat([text_encoder_1_output, text_encoder_2_output], dim=-1)
         return text_encoder_output, pooled_text_encoder_2_output
