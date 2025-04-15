@@ -248,6 +248,11 @@ class TrainingTab:
                          tooltip="Clips the gradient norm. Leave empty to disable gradient clipping.")
         components.entry(frame, 10, 1, self.ui_state, "clip_grad_norm")
 
+        # zclip
+        components.label(frame, 11, 0, "ZClip",
+                         tooltip="Enables ZClip gradient clipping. This is a more advanced gradient clipping method that can help prevent gradient spikes.")
+        components.switch(frame, 11, 1, self.ui_state, "zclip")
+
     def __create_base2_frame(self, master, row, video_training_enabled: bool = False):
         frame = ctk.CTkFrame(master=master, corner_radius=5)
         frame.grid(row=row, column=0, padx=5, pady=5, sticky="nsew")
