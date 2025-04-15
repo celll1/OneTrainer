@@ -259,7 +259,7 @@ class TrainingTab:
         inner_frame.grid_columnconfigure(0, weight=0) # Switch
         inner_frame.grid_columnconfigure(1, weight=0, pad=5) # Button with padding
         
-        components.switch(inner_frame, 0, 0, self.ui_state, "zclip", anchor="w")
+        components.switch(inner_frame, 0, 0, self.ui_state, "zclip") 
         # Use standard button, configure appearance if needed
         zclip_button = components.button(inner_frame, 0, 1, "...", self.__open_zclip_window,
                                          tooltip="Open advanced ZClip settings window.", width=40) 
