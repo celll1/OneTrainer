@@ -9,6 +9,7 @@ from modules.util.config.CloudConfig import CloudConfig
 from modules.util.config.ConceptConfig import ConceptConfig
 from modules.util.config.SampleConfig import SampleConfig
 from modules.util.config.SecretsConfig import SecretsConfig
+from modules.util.enum.AttentionProcessorType import AttentionProcessorType
 from modules.util.enum.AudioFormat import AudioFormat
 from modules.util.enum.ConfigPart import ConfigPart
 from modules.util.enum.DataType import DataType
@@ -290,7 +291,8 @@ class TrainConfig(BaseConfig):
     enable_activation_offloading: bool
     layer_offload_fraction: float
     force_circular_padding: bool
-    sage_attention: bool
+    sage_attention: bool = False
+    attention_processor: str = AttentionProcessorType.NONE.value
 
     # data settings
     concept_file_name: str
@@ -778,6 +780,7 @@ class TrainConfig(BaseConfig):
         data.append(("layer_offload_fraction", 0.0, float, False))
         data.append(("force_circular_padding", False, bool, False))
         data.append(("sage_attention", False, bool, False))
+        data.append(("attention_processor", AttentionProcessorType.NONE.value, str, False))
 
         # data settings
         data.append(("concept_file_name", "training_concepts/concepts.json", str, False))

@@ -4,6 +4,7 @@ from modules.ui.SchedulerParamsWindow import SchedulerParamsWindow
 from modules.ui.TimestepDistributionWindow import TimestepDistributionWindow
 from modules.ui.ZClipWindow import ZClipWindow
 from modules.util.config.TrainConfig import TrainConfig
+from modules.util.enum.AttentionProcessorType import AttentionProcessorType
 from modules.util.enum.DataType import DataType
 from modules.util.enum.EMAMode import EMAMode
 from modules.util.enum.GradientCheckpointingMethod import GradientCheckpointingMethod
@@ -319,11 +320,18 @@ class TrainingTab:
         components.switch(frame, row, 1, self.ui_state, "enable_autocast_cache")
         row += 1
 
-        # --- SageAttention Start ---
-        components.label(frame, row, 0, "SageAttention",
-                         tooltip="Enable SageAttention optimization (experimental, requires installation). Replaces the standard attention mechanism.")
-        components.switch(frame, row, 1, self.ui_state, "sage_attention")
+        # --- Attention Processor --- #
+        components.label(frame, row, 0, "Attention Processor",
+                         tooltip="Select the attention mechanism optimization (requires installation). \n'none': Default Diffusers/PyTorch implementation.\n'sage': Experimental SageAttention.\n'flash_attention_2': FlashAttention 2.")
+        components.options(frame, row, 1, [str(e) for e in AttentionProcessorType], self.ui_state, "attention_processor")
         row += 1
+        # --- Attention Processor End ---
+
+        # --- SageAttention Start (Keep for potential display/info, but functionally replaced) ---
+        # components.label(frame, row, 0, "SageAttention (Deprecated)",
+        #                  tooltip="Legacy setting. Use 'Attention Processor' dropdown instead.")
+        # components.switch(frame, row, 1, self.ui_state, "sage_attention", state="disabled") # Disable the old switch
+        # row += 1
         # --- SageAttention End ---
 
         # resolution

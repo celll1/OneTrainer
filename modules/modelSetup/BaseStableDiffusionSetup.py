@@ -16,10 +16,12 @@ from modules.util.checkpointing_util import (
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.conv_util import apply_circular_padding_to_conv2d
 from modules.util.dtype_util import create_autocast_context
+from modules.util.enum.AttentionProcessorType import AttentionProcessorType
 from modules.util.enum.TrainingMethod import TrainingMethod
+from modules.util.flashattention_processor import FLASH_ATTENTION_AVAILABLE, FlashAttention2Processor
 from modules.util.quantization_util import quantize_layers
+from modules.util.sageattention_processor import SAGE_ATTENTION_AVAILABLE, SageAttentionProcessor
 from modules.util.TrainProgress import TrainProgress
-from modules.util.sageattention_processor import SageAttentionProcessor, SAGE_ATTENTION_AVAILABLE
 
 import torch
 from torch import Tensor
@@ -68,19 +70,39 @@ class BaseStableDiffusionSetup(
         quantize_layers(model.unet, self.train_device, model.train_dtype)
 
         # --- Set Attention Processor for SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and getattr(config, 'sage_attention', False):
-            if hasattr(model, 'unet') and model.unet is not None:
-                print("Setting SageAttentionProcessor for UNet in BaseStableDiffusionSetup...")
-                try:
-                    sage_processor = SageAttentionProcessor()
-                    model.unet.set_attn_processor(sage_processor)
-                    print("Successfully set SageAttentionProcessor for UNet.")
-                except Exception as e:
-                    print(f"Failed to set SageAttentionProcessor in BaseStableDiffusionSetup: {e}")
-            else:
-                print("UNet not found in model, cannot set SageAttentionProcessor.")
-        elif not SAGE_ATTENTION_AVAILABLE and getattr(config, 'sage_attention', False):
-            print("Warning: sage_attention is enabled in config, but SageAttentionProcessor is not available (sageattention library likely not installed).")
+        attn_processor_type = getattr(config, 'attention_processor', AttentionProcessorType.NONE.value).lower()
+        target_module = getattr(model, 'unet', None)
+
+        if target_module is not None:
+            if attn_processor_type == AttentionProcessorType.SAGE.value:
+                if SAGE_ATTENTION_AVAILABLE:
+                    print("Setting SageAttentionProcessor for UNet...")
+                    try:
+                        processor = SageAttentionProcessor()
+                        target_module.set_attn_processor(processor)
+                        print("Successfully set SageAttentionProcessor for UNet.")
+                    except Exception as e:
+                        print(f"Failed to set SageAttentionProcessor: {e}")
+                else:
+                    print("Warning: attention_processor is 'sage', but SageAttention is not available. Using default processor.")
+
+            elif attn_processor_type == AttentionProcessorType.FLASH_ATTENTION_2.value:
+                if FLASH_ATTENTION_AVAILABLE:
+                    print("Setting FlashAttention2Processor for UNet...")
+                    try:
+                        # Use the standard SD/SDXL processor
+                        processor = FlashAttention2Processor()
+                        target_module.set_attn_processor(processor)
+                        print("Successfully set FlashAttention2Processor for UNet.")
+                    except Exception as e:
+                        print(f"Failed to set FlashAttention2Processor: {e}")
+                else:
+                    print("Warning: attention_processor is 'flash_attention_2', but FlashAttention 2 is not available. Using default processor.")
+            elif attn_processor_type != AttentionProcessorType.NONE.value:
+                 print(f"Warning: Unknown attention_processor type '{attn_processor_type}'. Using default processor.")
+        else:
+             if attn_processor_type != AttentionProcessorType.NONE.value:
+                  print("Warning: UNet not found in model, cannot set custom Attention Processor.")
         # --- Set Attention Processor for SageAttention End ---
 
     def _setup_embeddings(

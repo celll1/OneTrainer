@@ -17,10 +17,12 @@ from modules.util.checkpointing_util import (
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.conv_util import apply_circular_padding_to_conv2d
 from modules.util.dtype_util import create_autocast_context, disable_fp16_autocast_context
+from modules.util.enum.AttentionProcessorType import AttentionProcessorType
 from modules.util.enum.TrainingMethod import TrainingMethod
+from modules.util.flashattention_processor import FLASH_ATTENTION_AVAILABLE, FlashAttention2FluxProcessor
 from modules.util.quantization_util import quantize_layers
+from modules.util.sageattention_processor import SAGE_ATTENTION_AVAILABLE, SageFluxAttentionProcessor
 from modules.util.TrainProgress import TrainProgress
-from modules.util.sageattention_processor import SageFluxAttentionProcessor, SAGE_ATTENTION_AVAILABLE
 
 import torch
 from torch import Tensor
@@ -35,6 +37,18 @@ class BaseFluxSetup(
     ModelSetupEmbeddingMixin,
     metaclass=ABCMeta
 ):
+
+    def __init__(
+            self,
+            train_device: torch.device,
+            temp_device: torch.device,
+            debug_mode: bool,
+    ):
+        super().__init__(
+            train_device=train_device,
+            temp_device=temp_device,
+            debug_mode=debug_mode,
+        )
 
     def setup_optimizations(
             self,
@@ -83,21 +97,40 @@ class BaseFluxSetup(
         quantize_layers(model.vae, self.train_device, model.train_dtype)
         quantize_layers(model.transformer, self.train_device, model.train_dtype)
 
-        # --- Set Attention Processor for SageAttention Start ---
-        if SAGE_ATTENTION_AVAILABLE and getattr(config, 'sage_attention', False):
-            if hasattr(model, 'transformer') and model.transformer is not None:
-                print("Setting SageFluxAttentionProcessor for Transformer in BaseFluxSetup...")
-                try:
-                    sage_processor = SageFluxAttentionProcessor()
-                    model.transformer.set_attn_processor(sage_processor)
-                    print("Successfully set SageFluxAttentionProcessor for Transformer.")
-                except Exception as e:
-                    print(f"Failed to set SageFluxAttentionProcessor in BaseFluxSetup: {e}")
-            else:
-                print("Transformer not found in model, cannot set SageFluxAttentionProcessor.")
-        elif not SAGE_ATTENTION_AVAILABLE and getattr(config, 'sage_attention', False):
-            print("Warning: sage_attention is enabled in config, but SageAttentionProcessor is not available (sageattention library likely not installed).")
-        # --- Set Attention Processor for SageAttention End ---
+        # --- Set Attention Processor Start ---
+        attn_processor_type = getattr(config, 'attention_processor', AttentionProcessorType.NONE.value).lower()
+        target_module = getattr(model, 'transformer', None) # Target Transformer for Flux
+
+        if target_module is not None:
+            if attn_processor_type == AttentionProcessorType.SAGE.value:
+                if SAGE_ATTENTION_AVAILABLE:
+                    print("Setting SageFluxAttentionProcessor for Transformer...")
+                    try:
+                        processor = SageFluxAttentionProcessor() # Use Flux version
+                        target_module.set_attn_processor(processor)
+                        print("Successfully set SageFluxAttentionProcessor for Transformer.")
+                    except Exception as e:
+                        print(f"Failed to set SageFluxAttentionProcessor: {e}")
+                else:
+                    print("Warning: attention_processor is 'sage', but SageAttention is not available. Using default processor.")
+
+            elif attn_processor_type == AttentionProcessorType.FLASH_ATTENTION_2.value:
+                if FLASH_ATTENTION_AVAILABLE:
+                    print("Setting FlashAttention2FluxProcessor for Transformer...")
+                    try:
+                        processor = FlashAttention2FluxProcessor() # Use Flux version
+                        target_module.set_attn_processor(processor)
+                        print("Successfully set FlashAttention2FluxProcessor for Transformer.")
+                    except Exception as e:
+                        print(f"Failed to set FlashAttention2FluxProcessor: {e}")
+                else:
+                    print("Warning: attention_processor is 'flash_attention_2', but FlashAttention 2 is not available. Using default processor.")
+            elif attn_processor_type != AttentionProcessorType.NONE.value:
+                 print(f"Warning: Unknown attention_processor type '{attn_processor_type}'. Using default processor.")
+        else:
+             if attn_processor_type != AttentionProcessorType.NONE.value:
+                  print("Warning: Transformer not found in model, cannot set custom Attention Processor.")
+        # --- Set Attention Processor End ---
 
     def _setup_embeddings(
             self,
